@@ -5,8 +5,8 @@ import os
 
 # ---------- CONFIGURATION ----------
 
-CVS_DIR = "../data/data"  # Root folder where roles and CVs are stored
-NUM_APPLICANTS = 200
+RESUME_DIRECTORY = "../data/data"  # Root folder where roles and CVs are stored
+TOTAL_CANDIDATES = 200
 
 DB_CONFIG = {
     'host': "localhost",
@@ -17,12 +17,12 @@ DB_CONFIG = {
 
 # ---------- DATABASE SETUP ----------
 
-def connect_db():
+def establish_connection():
     return mysql.connector.connect(**DB_CONFIG)
 
-def create_tables():
-    db = connect_db()
-    cursor = db.cursor()
+def setup_database_tables():
+    database = establish_connection()
+    cursor = database.cursor()
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS ApplicantProfile (
@@ -46,101 +46,101 @@ def create_tables():
     );
     """)
 
-    db.commit()
+    database.commit()
     cursor.close()
-    db.close()
+    database.close()
     print("Tables created successfully.")
 
 # ---------- LOAD CVS STRUCTURE ----------
 
-def load_cvs():
-    role_to_cvs = {}
-    for role in os.listdir(CVS_DIR):
-        role_path = os.path.join(CVS_DIR, role)
-        if os.path.isdir(role_path):
-            pdfs = [
-                os.path.join(role_path, f)
-                for f in os.listdir(role_path)
-                if f.lower().endswith('.pdf')
+def fetch_resume_files():
+    position_to_resumes = {}
+    for position in os.listdir(RESUME_DIRECTORY):
+        position_directory = os.path.join(RESUME_DIRECTORY, position)
+        if os.path.isdir(position_directory):
+            pdf_files = [
+                os.path.join(position_directory, file)
+                for file in os.listdir(position_directory)
+                if file.lower().endswith('.pdf')
             ]
-            if pdfs:
-                role_to_cvs[role] = pdfs
-    return role_to_cvs
+            if pdf_files:
+                position_to_resumes[position] = pdf_files
+    return position_to_resumes
 
 # ---------- FAKE DATA INSERTION ----------
 
-def insert_fake_data(num_applicants=NUM_APPLICANTS):
-    fake = Faker()
-    db = connect_db()
-    cursor = db.cursor()
+def populate_sample_data(candidate_count=TOTAL_CANDIDATES):
+    data_generator = Faker()
+    database = establish_connection()
+    cursor = database.cursor()
 
     # Load real CV paths from directory
-    role_to_cvs = load_cvs()
+    position_to_resumes = fetch_resume_files()
 
-    if not role_to_cvs:
+    if not position_to_resumes:
         print("No valid CVs found in cvs/ directory.")
         return
 
-    all_available_cvs = []
-    for role, paths in role_to_cvs.items():
+    complete_resume_list = []
+    for job_position, file_paths in position_to_resumes.items():
         # Only include .pdf files (case-insensitive)
-        pdf_paths = [path for path in paths if path.lower().endswith('.pdf')]
-        if pdf_paths:
-            role_to_cvs[role] = pdf_paths
-            for path in pdf_paths:
-                all_available_cvs.append((role, path))
+        pdf_file_paths = [file_path for file_path in file_paths if file_path.lower().endswith('.pdf')]
+        if pdf_file_paths:
+            position_to_resumes[job_position] = pdf_file_paths
+            for file_path in pdf_file_paths:
+                complete_resume_list.append((job_position, file_path))
         else:
-            role_to_cvs[role] = []
+            position_to_resumes[job_position] = []
 
-    used_cv_paths = set()
+    utilized_resume_paths = set()
 
-    for _ in range(num_applicants):
+    for _ in range(candidate_count):
         # Insert applicant
-        first_name = fake.first_name()
-        last_name = fake.last_name()
-        dob = fake.date_of_birth(minimum_age=18, maximum_age=60)
-        address = fake.address().replace("\n", ", ")
+        candidate_first_name = data_generator.first_name()
+        candidate_last_name = data_generator.last_name()
+        birth_date = data_generator.date_of_birth(minimum_age=18, maximum_age=60)
+        home_address = data_generator.address().replace("\n", ", ")
         while True:
-            phone = fake.phone_number()
-            if len(phone) < 20:
+            contact_number = data_generator.phone_number()
+            if len(contact_number) < 20:
                 break
 
         cursor.execute("""
         INSERT INTO ApplicantProfile (first_name, last_name, date_of_birth, address, phone_number)
         VALUES (%s, %s, %s, %s, %s)
-        """, (first_name, last_name, dob, address, phone))
+        """, (candidate_first_name, candidate_last_name, birth_date, home_address, contact_number))
 
-        applicant_id = cursor.lastrowid
+        current_applicant_id = cursor.lastrowid
 
         # Assign 1–3 different roles with unique CVs
-        available_roles = [r for r in role_to_cvs if role_to_cvs[r]]
-        random.shuffle(available_roles)
-        num_roles = min(random.randint(1, 3), len(available_roles))
+        available_positions = [position for position in position_to_resumes if position_to_resumes[position]]
+        random.shuffle(available_positions)
+        selected_role_count = min(random.randint(1, 3), len(available_positions))
 
-        for role in available_roles[:num_roles]:
+        for job_position in available_positions[:selected_role_count]:
             # Filter unused CVs for this role
-            unused_cvs = [cv for cv in role_to_cvs[role] if cv not in used_cv_paths]
-            if not unused_cvs:
+            unused_resume_files = [resume_file for resume_file in position_to_resumes[job_position] if resume_file not in utilized_resume_paths]
+            if not unused_resume_files:
                 continue
 
-            full_cv_path = random.choice(unused_cvs)
-            used_cv_paths.add(full_cv_path)
+            selected_resume_path = random.choice(unused_resume_files)
+            utilized_resume_paths.add(selected_resume_path)
 
             # Extract only the filename
-            filename_only = os.path.basename(full_cv_path)
+            resume_filename = os.path.basename(selected_resume_path)
 
             cursor.execute("""
             INSERT INTO ApplicationDetail (applicant_id, application_role, cv_path)
             VALUES (%s, %s, %s)
-            """, (applicant_id, role.capitalize().replace("-", " "), filename_only))
+            """, (current_applicant_id, job_position.capitalize().replace("-", " "), resume_filename))
 
-    db.commit()
+    database.commit()
     cursor.close()
-    db.close()
-    print(f"{num_applicants} applicants inserted with valid PDF CVs and roles.")
+    database.close()
+    print(f"{candidate_count} applicants inserted with valid PDF CVs and roles.")
 
 # ---------- MAIN EXECUTION ----------
 
 if __name__ == "__main__":
-    create_tables()
-    insert_fake_data()
+    setup_database_tables()
+    populate_sample_data()
