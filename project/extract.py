@@ -1,7 +1,7 @@
 import os
 
 # Set the path to your main 'cvs' directory
-cvs_dir = 'data/data'  # <-- Change this to your actual path
+cvs_dir = '../data/data'  # <-- Change this to your actual path
 
 # Traverse each subdirectory in 'cvs'
 for folder_name in os.listdir(cvs_dir):
@@ -14,7 +14,7 @@ for folder_name in os.listdir(cvs_dir):
         )
         
         # Keep only the first 20
-        for pdf_to_delete in pdf_files[20:]:
+        for pdf_to_delete in pdf_files[19:]:
             try:
                 os.remove(os.path.join(folder_path, pdf_to_delete))
                 print(f"Deleted: {os.path.join(folder_path, pdf_to_delete)}")
