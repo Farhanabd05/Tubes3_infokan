@@ -1,22 +1,22 @@
 import os
 
 # Set the path to your main 'cvs' directory
-cvs_dir = '../data/data'  # <-- Change this to your actual path
+data_directory = '../data/data'  # <-- Change this to your actual path
 
 # Traverse each subdirectory in 'cvs'
-for folder_name in os.listdir(cvs_dir):
-    folder_path = os.path.join(cvs_dir, folder_name)
+for subdirectory_name in os.listdir(data_directory):
+    subdirectory_path = os.path.join(data_directory, subdirectory_name)
     
-    if os.path.isdir(folder_path):
+    if os.path.isdir(subdirectory_path):
         # Get list of all PDFs sorted alphabetically
-        pdf_files = sorted(
-            [f for f in os.listdir(folder_path) if f.lower().endswith('.pdf')]
+        all_pdf_files = sorted(
+            [filename for filename in os.listdir(subdirectory_path) if filename.lower().endswith('.pdf')]
         )
         
         # Keep only the first 20
-        for pdf_to_delete in pdf_files[19:]:
+        for pdf_file_to_remove in all_pdf_files[19:]:
             try:
-                os.remove(os.path.join(folder_path, pdf_to_delete))
-                print(f"Deleted: {os.path.join(folder_path, pdf_to_delete)}")
-            except Exception as e:
-                print(f"Error deleting {pdf_to_delete}: {e}")
+                os.remove(os.path.join(subdirectory_path, pdf_file_to_remove))
+                print(f"Deleted: {os.path.join(subdirectory_path, pdf_file_to_remove)}")
+            except Exception as error:
+                print(f"Error deleting {pdf_file_to_remove}: {error}")
