@@ -7,6 +7,7 @@ import webbrowser
 # Add the parent directory (project/) to Python path
 # sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from algo.kmp import kmp_search
+from algo.bm import boyer_moore_search
 from algo.levenshtein import levenshtein_distance
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
@@ -37,7 +38,14 @@ def main(page: ft.Page):
     )
 
     # Pilihan Algoritma Exact Match (KMP/BM)
-    algo_toggle = ft.Switch(value=True, label="Use KMP (off means BM)")
+    algo_dropdown = ft.Dropdown(
+        label="Search Algorithm",
+        width=200,
+        options=[
+            ft.dropdown.Option("KMP"),
+            ft.dropdown.Option("Boyer-Moore")
+        ],
+    )
 
     # Top Matches dropdown
     top_matches = ft.Dropdown(
@@ -69,9 +77,11 @@ def main(page: ft.Page):
         for data in DUMMY_DATA:
             total_matches = 0
             details = []
-
             for kw in keywords:
-                positions = kmp_search(data['text'].lower(), kw.lower())  # Exact match
+                if algo_dropdown.value == "KMP":
+                    positions = kmp_search(data['text'].lower(), kw.lower())
+                elif algo_dropdown.value == "Boyer-Moore":
+                    positions = boyer_moore_search(data['text'].lower(), kw.lower())
                 count = len(positions)
                 if count:
                     total_matches += count
@@ -180,7 +190,7 @@ def main(page: ft.Page):
         ft.Text("CV Analyzer App", size=32, weight=ft.FontWeight.BOLD),
         ft.Column([
             ft.Text("Keywords:"), keywords_field,
-            ft.Text("Search Algorithm:"), algo_toggle,
+            algo_dropdown,
             top_matches, search_button
         ], spacing=10),
         results_header, scan_info, results_container
