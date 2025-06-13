@@ -78,7 +78,7 @@ def populate_sample_data(candidate_count=TOTAL_CANDIDATES):
     position_to_resumes = fetch_resume_files()
 
     if not position_to_resumes:
-        print("No valid CVs found in cvs/ directory.")
+        print("No valid CVs found in data/ directory.")
         return
 
     complete_resume_list = []
