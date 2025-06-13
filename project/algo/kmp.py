@@ -25,25 +25,29 @@ def compute_lps(pattern: str) -> list[int]:
     return lps
 
 def kmp_search(text: str, pattern: str) -> list[int]:
-    n = len(text) 
-    m= len(pattern) 
-    lps = compute_lps(pattern) 
+    """
+    Cari semua kemunculan 'pattern' di 'text' menggunakan KMP.
+    Kembalikan list posisi (0-based) di mana pattern mulai cocok.
+    """
+    n, m = len(text), len(pattern)
+    if m == 0:
+        return []
+
+    lps = compute_lps(pattern)
     results = []
-    i=j=0
-    while i<n:
-        if pattern[j]== text[i]:
-            i+= 1
-            j+=1
-        if j == m:
-            print("Pattern found at index:", i-j)
-            results.append(i-j)
-            j= lps [j-1]
+    i = j = 0  # i untuk text, j untuk pattern
+
+    while i < n:
+        if text[i] == pattern[j]:
+            i += 1
+            j += 1
+            if j == m:
+                # ketemu match berakhir di i-1, maka start = i-m
+                results.append(i - m)
+                j = lps[j - 1]
         else:
-            if i < n and pattern[j]!= text[i]:
-                if j!= 0:
-                    j= lps [j-1]
-                else:
-                    i+=1
+            if j != 0:
+                j = lps[j - 1]
             else:
-                i+=1
+                i += 1
     return results
