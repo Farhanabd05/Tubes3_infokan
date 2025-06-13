@@ -9,6 +9,7 @@ import webbrowser
 from algo.kmp import kmp_search
 from algo.levenshtein import levenshtein_distance
 from utils.pdf_to_text import load_all_cv_texts
+from utils.db import get_applicant_by_cv_filename
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
 print("📄 Loading CVs from data/data ...")
@@ -113,8 +114,11 @@ def main(page: ft.Page):
         # Update UI
         results_container.controls.clear()
         for data, total, details in matches:
+            filename = data.get('filename', 'Unknown')
+            # print(f"🔍 Debug: Processing CV - filename: {filename}")
+            
             lines = [
-                ft.Text(data.get('filename', 'Unknown'), weight=ft.FontWeight.BOLD, size=16),
+                ft.Text(filename, weight=ft.FontWeight.BOLD, size=16),
                 ft.Text(f"{round(total, 2)} match score" if fuzzy_used else f"{int(total)} matches", italic=True),
                 ft.Text("Matched keywords:"),
             ] + [
@@ -122,7 +126,10 @@ def main(page: ft.Page):
                 for i, (kw, score) in enumerate(details)
             ] + [
                 ft.Row([
-                    ft.ElevatedButton(text="Summary"),
+                   ft.ElevatedButton(
+                        text="Summary",
+                        on_click=lambda e, name=filename: (print(f"🔍 Debug: Summary button clicked for: {name}"), show_summary_popup(page, name))[1]
+                    ),
                     ft.ElevatedButton(
                         text="View CV",
                         on_click=lambda e, path=data['path']: on_view_cv(path)
@@ -139,6 +146,33 @@ def main(page: ft.Page):
             )
 
         page.update()
+    def show_summary_popup(page, filename):
+        # print(f"🔍 Debug: Summary button clicked for: {filename}")
+        data = get_applicant_by_cv_filename(filename)
+        # print(f"🔍 Debug: get_applicant_by_cv_filename returned: {data}")
+        # print(f"🔍 Debug: Data type: {type(data)}")
+        # print(f"🔍 Debug: Data keys: {data.keys() if data else 'None'}")
+
+        if data is None:
+            dialog = ft.AlertDialog(title=ft.Text("Profile not found"))
+        else:
+            dialog = ft.AlertDialog(
+                title=ft.Text("Applicant Summary"),
+                content=ft.Column([
+                    ft.Text(f"Name: {data['first_name']} {data['last_name']}"),
+                    ft.Text(f"Role: {data['application_role']}"),
+                    ft.Text(f"Date of Birth: {data['date_of_birth']}"),
+                    ft.Text(f"Address: {data['address']}"),
+                    ft.Text(f"Phone: {data['phone_number']}"),
+                ]),
+                on_dismiss=lambda e: print("Dialog closed")
+            )
+
+        # ⬇️ Tambahkan dialog ke page.overlay agar muncul!
+        page.overlay.append(dialog)
+        dialog.open = True
+        page.update()
+
 
 
     # Susun layout
