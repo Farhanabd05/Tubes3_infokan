@@ -173,7 +173,7 @@ def main(page: ft.Page):
                 ], spacing=10)
             ]
             # Warna berbeda untuk ranking
-            bgcolor = "lightgreen" if i == 1 else "lightblue" if i <= 3 else "lightgray"
+            bgcolor = "green" if i == 1 else "lightblue" if i <= 3 else "lightgray"
             
             results_container.controls.append(
                 ft.Container(
