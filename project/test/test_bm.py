@@ -1,13 +1,11 @@
 import sys
 import os
-# Add the parent directory (project/) to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from algo.bm import build_last_occurrence, boyer_moore_search
 
 def test_build_last_occurrence(string="CBAABCAAAB"):
     # pola 'AAAB'
     lps = build_last_occurrence("AAAB", charset=set(string))
-    # paling sederhana, lps harus [0,1,2,0]
     assert lps == {"A":2,"B":3,"C":-1}, f"LPS salah: {lps}"
 
 def test_bm_search_found():
