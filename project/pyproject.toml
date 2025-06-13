@@ -8,4 +8,5 @@ dependencies = [
     "faker>=37.3.0",
     "flet",
     "mysql-connector-python>=9.3.0",
+    "pymupdf>=1.26.1",
 ]

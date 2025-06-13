@@ -2,20 +2,27 @@ import flet as ft
 import time
 import sys
 import os
+import webbrowser
+
 # Add the parent directory (project/) to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from algo.kmp import kmp_search
 from algo.levenshtein import levenshtein_distance
+from utils.pdf_to_text import load_all_cv_texts
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
-DUMMY_DATA = [
-    { 'id': 1, 'name': 'Farhan', 'text': 'React Express HTML' },
-    { 'id': 2, 'name': 'Aland',  'text': 'React Python'        },
-    { 'id': 3, 'name': 'Ariel',  'text': 'Express Go'         },
-    # Tambahkan lebih banyak dummy jika diperlukan
-]
+print("📄 Loading CVs from data/data ...")
+DUMMY_DATA = load_all_cv_texts("../data/data")  # atau "../data/data" tergantung run location
+print(f"✅ Loaded {len(DUMMY_DATA)} CVs.")
 
 # UI Flet untuk CV Analyzer App
+
+def on_view_cv(path: str):
+    abs_path = os.path.abspath(path)
+    if os.path.exists(abs_path):
+        webbrowser.open(f"file://{abs_path}")
+    else:
+        print(f"❌ File not found: {abs_path}")
 
 def main(page: ft.Page):
     page.title = "CV Analyzer App"
@@ -107,7 +114,7 @@ def main(page: ft.Page):
         results_container.controls.clear()
         for data, total, details in matches:
             lines = [
-                ft.Text(data['name'], weight=ft.FontWeight.BOLD, size=16),
+                ft.Text(data.get('filename', 'Unknown'), weight=ft.FontWeight.BOLD, size=16),
                 ft.Text(f"{round(total, 2)} match score" if fuzzy_used else f"{int(total)} matches", italic=True),
                 ft.Text("Matched keywords:"),
             ] + [
@@ -116,7 +123,10 @@ def main(page: ft.Page):
             ] + [
                 ft.Row([
                     ft.ElevatedButton(text="Summary"),
-                    ft.ElevatedButton(text="View CV")
+                    ft.ElevatedButton(
+                        text="View CV",
+                        on_click=lambda e, path=data['path']: on_view_cv(path)
+                    )
                 ], spacing=10)
             ]
             results_container.controls.append(
