@@ -11,6 +11,8 @@ from algo.bm import boyer_moore_search
 from algo.levenshtein import levenshtein_distance
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
+from regex.extractor import extract_skills, extract_job_experience, extract_education
+
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
 print("📄 Loading CVs from data/data ...")
@@ -187,11 +189,16 @@ def main(page: ft.Page):
 
         page.update()
     def show_summary_popup(page, filename):
-        # print(f"🔍 Debug: Summary button clicked for: {filename}")
         data = get_applicant_by_cv_filename(filename)
-        # print(f"🔍 Debug: get_applicant_by_cv_filename returned: {data}")
-        # print(f"🔍 Debug: Data type: {type(data)}")
-        # print(f"🔍 Debug: Data keys: {data.keys() if data else 'None'}")
+
+        # Temukan CV yang sesuai dari DUMMY_DATA
+        cv_entry = next((entry for entry in DUMMY_DATA if entry['filename'] == filename), None)
+        extracted_text = cv_entry['text'] if cv_entry else ""
+
+        # Lakukan ekstraksi jika teks tersedia
+        skills = extract_skills(extracted_text)
+        jobs = extract_job_experience(extracted_text)
+        education = extract_education(extracted_text)
 
         if data is None:
             dialog = ft.AlertDialog(title=ft.Text("Profile not found"))
@@ -204,14 +211,24 @@ def main(page: ft.Page):
                     ft.Text(f"Date of Birth: {data['date_of_birth']}"),
                     ft.Text(f"Address: {data['address']}"),
                     ft.Text(f"Phone: {data['phone_number']}"),
+                    ft.Divider(),
+
+                    ft.Text("Skills:", weight="bold"),
+                    *([ft.Text(f"• {skill}") for skill in skills] if skills else [ft.Text("-")]),
+
+                    ft.Text("Experience:", weight="bold"),
+                    *([ft.Text(f"• {job['position']} @ {job['company']} ({job['date']})") for job in jobs] if jobs else [ft.Text("-")]),
+
+                    ft.Text("Education:", weight="bold"),
+                    *([ft.Text(f"• {edu['degree']} - {edu['institution']} ({edu['year']})") for edu in education] if education else [ft.Text("-")]),
                 ]),
                 on_dismiss=lambda e: print("Dialog closed")
             )
 
-        # ⬇️ Tambahkan dialog ke page.overlay agar muncul!
         page.overlay.append(dialog)
         dialog.open = True
         page.update()
+
 
 
 
