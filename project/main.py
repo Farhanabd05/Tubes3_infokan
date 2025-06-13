@@ -66,6 +66,7 @@ def main(page: ft.Page):
         fuzzy_used = False
         fuzzy_start = 0
 
+        # Exact match dengan KMP
         for data in DUMMY_DATA:
             total_matches = 0
             details = []
@@ -80,8 +81,17 @@ def main(page: ft.Page):
             if total_matches:
                 matches.append((data, total_matches, details))
 
-        if not matches:
-            # Mulai fuzzy match
+        # Sort exact matches berdasarkan total_matches (descending)
+        matches.sort(key=lambda x: x[1], reverse=True)
+        
+        # Ambil top N untuk exact matches
+        top_n = int(top_matches.value or "3")
+        
+        if matches:
+            # Jika ada exact matches, ambil top N
+            matches = matches[:top_n]
+        else:
+            # Mulai fuzzy match jika tidak ada exact matches
             fuzzy_used = True
             fuzzy_start = time.time()
             fuzzy_matches = []
@@ -100,35 +110,51 @@ def main(page: ft.Page):
                 if score > 0:
                     fuzzy_matches.append((data, score, details))
 
+            # Sort fuzzy matches berdasarkan score (descending)
             fuzzy_matches.sort(key=lambda x: x[1], reverse=True)
-            top_n = int(top_matches.value or "3")
+            
+            # Ambil top N untuk fuzzy matches
             matches = fuzzy_matches[:top_n]
 
         duration_ms = int((time.time() - t0) * 1000)
         fuzzy_ms = int((time.time() - fuzzy_start) * 1000) if fuzzy_used else 0
 
+        # Update scan info dengan informasi top matches
+        total_found = len(matches)
         scan_info.value = f"{len(DUMMY_DATA)} CVs scanned in {duration_ms}ms\n"
+        scan_info.value += f"Showing top {min(top_n, total_found)} of {total_found} matches\n"
         if fuzzy_used:
             scan_info.value += f"Fuzzy Match executed in {fuzzy_ms}ms"
 
         # Update UI
         results_container.controls.clear()
-        for data, total, details in matches:
+        for i, (data, total, details) in enumerate(matches, 1):
             filename = data.get('filename', 'Unknown')
-            # print(f"🔍 Debug: Processing CV - filename: {filename}")
             
+            # Tambahkan ranking number
             lines = [
-                ft.Text(filename, weight=ft.FontWeight.BOLD, size=16),
+                ft.Row([
+                    ft.Container(
+                        content=ft.Text(f"#{i}", weight=ft.FontWeight.BOLD, color="white"),
+                        bgcolor="blue",
+                        padding=5,
+                        border_radius=15,
+                        width=30,
+                        height=30,
+                        alignment=ft.alignment.center
+                    ),
+                    ft.Text(filename, weight=ft.FontWeight.BOLD, size=16)
+                ], spacing=10),
                 ft.Text(f"{round(total, 2)} match score" if fuzzy_used else f"{int(total)} matches", italic=True),
                 ft.Text("Matched keywords:"),
             ] + [
-                ft.Text(f"{i+1}. {kw}: {round(score, 2)} similarity" if fuzzy_used else f"{i+1}. {kw}: {int(score)} occurrence{'s' if score>1 else ''}")
-                for i, (kw, score) in enumerate(details)
+                ft.Text(f"• {kw}: {round(score, 2)} similarity" if fuzzy_used else f"• {kw}: {int(score)} occurrence{'s' if score>1 else ''}")
+                for kw, score in details
             ] + [
                 ft.Row([
                    ft.ElevatedButton(
                         text="Summary",
-                        on_click=lambda e, name=filename: (print(f"🔍 Debug: Summary button clicked for: {name}"), show_summary_popup(page, name))[1]
+                        on_click=lambda e, name=filename: show_summary_popup(page, name)
                     ),
                     ft.ElevatedButton(
                         text="View CV",
@@ -136,12 +162,16 @@ def main(page: ft.Page):
                     )
                 ], spacing=10)
             ]
+            # Warna berbeda untuk ranking
+            bgcolor = "lightgreen" if i == 1 else "lightblue" if i <= 3 else "lightgray"
+            
             results_container.controls.append(
                 ft.Container(
                     content=ft.Column(lines),
                     padding=10,
-                    bgcolor="lightgray",
-                    width=200
+                    bgcolor=bgcolor,
+                    width=200,
+                    border_radius=10
                 )
             )
 
