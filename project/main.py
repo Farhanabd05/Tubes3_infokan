@@ -11,6 +11,9 @@ from algo.bm import boyer_moore_search
 from algo.levenshtein import levenshtein_distance
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
+from regex.extract_exp import extract_experience_section
+from regex.extract_exp import extract_text_from_pdf
+import re
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
 print("📄 Loading CVs from data/data ...")
@@ -187,28 +190,60 @@ def main(page: ft.Page):
 
         page.update()
     def show_summary_popup(page, filename):
-        # print(f"🔍 Debug: Summary button clicked for: {filename}")
         data = get_applicant_by_cv_filename(filename)
-        # print(f"🔍 Debug: get_applicant_by_cv_filename returned: {data}")
-        # print(f"🔍 Debug: Data type: {type(data)}")
-        # print(f"🔍 Debug: Data keys: {data.keys() if data else 'None'}")
-
+        
         if data is None:
             dialog = ft.AlertDialog(title=ft.Text("Profile not found"))
         else:
+            full_cv_path = None
+            for cv in DUMMY_DATA:
+                if cv["filename"] == filename:
+                    full_cv_path = cv["path"]
+                    print("if path exists:", os.path.exists(full_cv_path))
+                    break
+            print(f"Full CV Path: {full_cv_path}")
+
+
+            # Create content list starting with basic info
+            content_items = [
+                ft.Text(f"Name: {data['first_name']} {data['last_name']}"),
+                ft.Text(f"Role: {data['application_role']}"),
+                ft.Text(f"Date of Birth: {data['date_of_birth']}"),
+                ft.Text(f"Address: {data['address']}"),
+                ft.Text(f"Phone: {data['phone_number']}"),
+                ft.Divider(),
+                ft.Text("Work Experience:", weight=ft.FontWeight.BOLD),
+            ]
+                        # Jika file ditemukan, ekstrak pengalaman
+            if full_cv_path and os.path.exists(full_cv_path):
+                text = extract_text_from_pdf(full_cv_path)
+                experiences = extract_experience_section(text)
+                print("text:", text)
+                print("experiences:", experiences)
+                # Add experience entries
+                if experiences:
+                    for i, exp in enumerate(experiences, 1):    
+                        content_items.append(
+                            ft.Container(
+                                content=ft.Text(f"{i}. {exp}", size=12),
+                                padding=ft.padding.only(left=10, bottom=5),
+                                bgcolor="grey",
+                                border_radius=5
+                            )
+                        )
+                else:
+                    content_items.append(ft.Text("No work experience found", italic=True))
+            
             dialog = ft.AlertDialog(
                 title=ft.Text("Applicant Summary"),
-                content=ft.Column([
-                    ft.Text(f"Name: {data['first_name']} {data['last_name']}"),
-                    ft.Text(f"Role: {data['application_role']}"),
-                    ft.Text(f"Date of Birth: {data['date_of_birth']}"),
-                    ft.Text(f"Address: {data['address']}"),
-                    ft.Text(f"Phone: {data['phone_number']}"),
-                ]),
+                content=ft.Column(
+                    content_items,
+                    height=400,
+                    scroll=ft.ScrollMode.AUTO
+                ),
                 on_dismiss=lambda e: print("Dialog closed")
             )
 
-        # ⬇️ Tambahkan dialog ke page.overlay agar muncul!
         page.overlay.append(dialog)
         dialog.open = True
         page.update()
