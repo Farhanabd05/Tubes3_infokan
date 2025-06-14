@@ -33,19 +33,22 @@ def on_view_cv(path: str):
 
 def main(page: ft.Page):
     page.title = "CV Analyzer App"
-    page.vertical_alignment = ft.MainAxisAlignment.START
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 20
-
+    
     # Input Keywords
     keywords_field = ft.TextField(
         hint_text="Enter keywords, e.g. React, Express, HTML",
-        width=600
+        width=600,
+        border_radius=ft.border_radius.all(20)
     )
 
     # Pilihan Algoritma Exact Match (KMP/BM)
     algo_dropdown = ft.Dropdown(
         label="Search Algorithm",
         width=200,
+        border_radius=ft.border_radius.all(20),
         options=[
             ft.dropdown.Option("KMP"),
             ft.dropdown.Option("Boyer-Moore")
@@ -56,6 +59,7 @@ def main(page: ft.Page):
     top_matches = ft.Dropdown(
         label="Top Matches",
         width=100,
+        border_radius=ft.border_radius.all(20),
         options=[ft.dropdown.Option(str(i)) for i in range(1, 11)],
         value="3"
     )
@@ -64,7 +68,7 @@ def main(page: ft.Page):
     search_button = ft.ElevatedButton(
         text="Search",
         width=600,
-        on_click=lambda e: on_search(e)
+        on_click=lambda e: on_search(e),
     )
 
     # Header dan container hasil
