@@ -13,6 +13,7 @@ from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
 from regex.extract_exp import extract_experience_section
 from regex.extract_exp import extract_text_from_pdf
+from regex.extract_edu import extract_education_section
 import re
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
@@ -214,12 +215,15 @@ def main(page: ft.Page):
                 ft.Divider(),
                 ft.Text("Work Experience:", weight=ft.FontWeight.BOLD),
             ]
-                        # Jika file ditemukan, ekstrak pengalaman
+            # Jika file ditemukan, ekstrak pengalaman
+            # Jika file ditemukan, ekstrak pengalaman dan education
             if full_cv_path and os.path.exists(full_cv_path):
                 text = extract_text_from_pdf(full_cv_path)
                 experiences = extract_experience_section(text)
+                education = extract_education_section(text)
                 print("text:", text)
                 print("experiences:", experiences)
+                print("education:", education)
                 # Add experience entries
                 if experiences:
                     for i, exp in enumerate(experiences, 1):    
@@ -233,6 +237,24 @@ def main(page: ft.Page):
                         )
                 else:
                     content_items.append(ft.Text("No work experience found", italic=True))
+                
+                # Add education section
+                content_items.extend([
+                    ft.Divider(),
+                    ft.Text("Education:", weight=ft.FontWeight.BOLD),
+                ])
+                
+                if education:
+                    content_items.append(
+                        ft.Container(
+                            content=ft.Text(education, size=12),
+                            padding=ft.padding.only(left=10, bottom=5),
+                            bgcolor="lightblue",
+                            border_radius=5
+                        )
+                    )
+                else:
+                    content_items.append(ft.Text("No education information found", italic=True))
             
             dialog = ft.AlertDialog(
                 title=ft.Text("Applicant Summary"),
