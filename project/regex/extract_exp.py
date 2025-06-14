@@ -75,30 +75,30 @@ def extract_experience_section(text: str) -> List[str]:
         text_after_date = current_line[match_end - current_line_start:].strip()
         
         # Prioritas 1: Cek apakah ada teks di baris yang sama dengan tanggal
-        if text_before_date and len(text_before_date.split()) < 6:
+        if text_before_date and len(text_before_date.split()) < 10:
             title_line = text_before_date
-        elif text_after_date and len(text_after_date.split()) < 6:
+        elif text_after_date and len(text_after_date.split()) < 10:
             title_line = text_after_date
         
         # Prioritas 2: Jika tidak ada di baris yang sama, cek baris sebelumnya
         if not title_line and lines_before_match > 0 and lines_before_match < len(lines):
             prev_line = lines[lines_before_match - 1].strip()
-            if len(prev_line.split()) < 6 and prev_line:
+            if len(prev_line.split()) < 10 and prev_line:
                 title_line = prev_line
         
         # Prioritas 3: Ambil company info dari baris setelahnya jika tidak ada di baris yang sama
         if not text_after_date and lines_after_match < len(lines):
-            next_line = lines[lines_after_match].strip()
-            if len(next_line.split()) < 6 and next_line:
+            next_line = lines[lines_after_match+1].strip()
+            if len(next_line.split()) < 10 and next_line:
                 company_line = next_line
         elif text_after_date and not title_line:
             # Jika text_after_date tidak dijadikan title, maka bisa jadi company
-            if len(text_after_date.split()) < 6:
+            if len(text_after_date.split()) < 10:
                 company_line = text_after_date
         
         # Jika ada text_before_date dan text_after_date, gunakan keduanya
         if text_before_date and text_after_date:
-            if len(text_before_date.split()) < 6 and len(text_after_date.split()) < 6:
+            if len(text_before_date.split()) < 10 and len(text_after_date.split()) < 10:
                 title_line = text_before_date
                 company_line = text_after_date
         
