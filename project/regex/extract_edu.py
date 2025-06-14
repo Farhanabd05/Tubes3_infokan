@@ -33,7 +33,9 @@ def extract_education_section(text):
     
     # Pattern 3: Pattern yang menangkap Education dan semua baris setelahnya
     # hingga menemukan section baru atau kata kunci tertentu
-    pattern3 = r'(?i)education\s*\n(.*?)(?=\n(?:experience|skills|certifications|interests|additional\s+information|professional\s+summary|summary|accomplishments)\s*\n|\Z)'
+    pattern3 = r'(?i)education\s*\n(.*?)(?=\n(?:experience|skills|certifications|interests|additional\s+information|professional\s+summary|summary|accomplishments|work history)\s*\n|\Z)'
+    
+    pattern4 = r'(?i)education and training\s*\n(.*?)(?=\n(?:experience|skills|certifications|interests|additional\s+information|professional\s+summary|summary|accomplishments|work history)\s*\n|\Z)'
     
     # Coba pattern pertama
     match = re.search(pattern1, text, re.MULTILINE | re.DOTALL)
@@ -50,6 +52,9 @@ def extract_education_section(text):
     if match:
         return match.group(1).strip()
     
+    match = re.search(pattern4, text, re.MULTILINE | re.DOTALL)
+    if match:
+        return match.group(1).strip()
     return None
 
 def extract_education_simple(text: str) -> str:

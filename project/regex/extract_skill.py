@@ -28,28 +28,35 @@ def extract_skills_from_resume(text):
     
     # Pattern 3: Pattern yang menangkap skills dan semua baris setelahnya
     # hingga menemukan section baru atau kata kunci tertentu
-    pattern3 = r'(?i)skills\s*\n(.*?)(?=\n(?:experience|skills|certifications|interests|additional\s+information|professional\s+summary|summary|accomplishments)\s*\n|\Z)'
+    pattern3 = r'(?i)skills\s*\n(.*?)(?=\n(?:experience|skills|certifications|interests|additional\s+information|professional\s+summary|summary|accomplishments|work\s+history|highlights)\s*\n|\Z)'
     
     # Coba semua pattern
     patterns = [pattern1, pattern2, pattern3]
     
+    # Coba pattern ketiga sebagai fallback
+    match = re.search(pattern3, text, re.MULTILINE | re.DOTALL)
+    if match:
+        result = match.group(1).strip()
+        print(match.group(1).strip())
+        if not re.search(r'(?i)(?:work\s+history|employment|experience|education)', result):
+            return result
+    
     # Coba pattern pertama
     match = re.search(pattern1, text, re.MULTILINE | re.DOTALL)
     if match:
+        result = match.group(1).strip()
         print(match.group(1).strip())
-        return match.group(1).strip()
+        if not re.search(r'(?i)(?:work\s+history|employment|experience|education)', result):
+            return result
     
     # Coba pattern kedua jika yang pertama tidak berhasil
     match = re.search(pattern2, text, re.MULTILINE | re.DOTALL)
     if match:
+        result = match.group(1).strip()
         print(match.group(1).strip())
-        return match.group(1).strip()
+        if not re.search(r'(?i)(?:work\s+history|employment|experience|education)', result):
+            return result
     
-    # Coba pattern ketiga sebagai fallback
-    match = re.search(pattern3, text, re.MULTILINE | re.DOTALL)
-    if match:
-        print(match.group(1).strip())
-        return match.group(1).strip()
     
     return None
 

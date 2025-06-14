@@ -72,9 +72,9 @@ def main(page: ft.Page):
     )
 
     # Header dan container hasil
-    results_header = ft.Text("Results", size=24, weight=ft.FontWeight.BOLD)
+    results_header = ft.Text("Results", size=18, weight=ft.FontWeight.BOLD)
     scan_info = ft.Text("0 CVs scanned in 0ms", italic=True)
-    results_container = ft.Row(spacing=20)
+    results_container = ft.Column(spacing=20)
 
     def on_search(e):
         t0 = time.time()
@@ -87,7 +87,7 @@ def main(page: ft.Page):
         for data in DUMMY_DATA:
             total_matches = 0
             details = []
-            for kw in keywords:
+            for kw in keywords: 
                 if algo_dropdown.value == "KMP":
                     positions = kmp_search(data['text'].lower(), kw.lower())
                 elif algo_dropdown.value == "Boyer-Moore":
@@ -145,56 +145,93 @@ def main(page: ft.Page):
         if fuzzy_used:
             scan_info.value += f"Fuzzy Match executed in {fuzzy_ms}ms"
 
-        # Update UI
-        results_container.controls.clear()
-        for i, (data, total, details) in enumerate(matches, 1):
-            filename = data.get('filename', 'Unknown')
-            
-            # Tambahkan ranking number
-            lines = [
-                ft.Row([
-                    ft.Container(
-                        content=ft.Text(f"#{i}", weight=ft.FontWeight.BOLD, color="white"),
-                        bgcolor="blue",
-                        padding=5,
-                        border_radius=15,
-                        width=30,
-                        height=30,
-                        alignment=ft.alignment.center
-                    ),
-                    ft.Text(filename, weight=ft.FontWeight.BOLD, size=16)
-                ], spacing=10),
-                ft.Text(f"{round(total, 2)} match score" if fuzzy_used else f"{int(total)} matches", italic=True),
-                ft.Text("Matched keywords:"),
-            ] + [
-                ft.Text(f"• {kw}: {round(score, 2)} similarity" if fuzzy_used else f"• {kw}: {int(score)} occurrence{'s' if score>1 else ''}")
-                for kw, score in details
-            ] + [
-                ft.Row([
-                   ft.ElevatedButton(
-                        text="Summary",
-                        on_click=lambda e, name=filename: show_summary_popup(page, name)
-                    ),
-                    ft.ElevatedButton(
-                        text="View CV",
-                        on_click=lambda e, path=data['path']: on_view_cv(path)
-                    )
-                ], spacing=10)
-            ]
-            # Warna berbeda untuk ranking
-            bgcolor = "green" if i == 1 else "lightblue" if i <= 3 else "lightgray"
-            
-            results_container.controls.append(
-                ft.Container(
-                    content=ft.Column(lines),
-                    padding=10,
-                    bgcolor=bgcolor,
-                    width=200,
-                    border_radius=10
-                )
-            )
+            # Pagination variables
+        items_per_page = 5
+        current_page = 1
+        total_pages = (len(matches) + items_per_page - 1) // items_per_page if matches else 1
 
-        page.update()
+        def update_results_display():
+            # Update UI
+            results_container.controls.clear()
+            start_idx = (current_page - 1) * items_per_page
+            end_idx = start_idx + items_per_page
+            current_matches = matches[start_idx:end_idx]
+
+            # Add pagination controls below cards
+            if total_pages > 1:
+                pagination_controls = ft.Row([
+                    ft.ElevatedButton(
+                        text="Previous",
+                        disabled=current_page == 1,
+                        on_click=lambda e: change_page(-1)
+                    ),
+                    ft.Text(f"Page {current_page} of {total_pages}"),
+                    ft.ElevatedButton(
+                        text="Next", 
+                        disabled=current_page == total_pages,
+                        on_click=lambda e: change_page(1)
+                    )
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
+                
+                results_container.controls.append(pagination_controls)
+
+            # Create row for cards only
+            cards_row = ft.Row(spacing=20)
+            
+            for i, (data, total, details) in enumerate(current_matches, start_idx + 1):
+                # ... existing card creation code ...
+                filename = data.get('filename', 'Unknown')
+                lines = [
+                    ft.Row([
+                        ft.Container(
+                            content=ft.Text(f"#{i}", weight=ft.FontWeight.BOLD, color="white"),
+                            bgcolor="blue",
+                            padding=5,
+                            border_radius=15,
+                            width=30,
+                            height=30,
+                            alignment=ft.alignment.center
+                        ),
+                        ft.Text(filename, weight=ft.FontWeight.BOLD, size=16)
+                    ], spacing=10),
+                    ft.Text(f"{round(total, 2)} match score" if fuzzy_used else f"{int(total)} matches", italic=True),
+                    ft.Text("Matched keywords:"),
+                ] + [
+                    ft.Text(f"• {kw}: {round(score, 2)} similarity" if fuzzy_used else f"• {kw}: {int(score)} occurrence{'s' if score>1 else ''}")
+                    for kw, score in details
+                ] + [
+                    ft.Row([
+                    ft.ElevatedButton(
+                            text="Summary",
+                            on_click=lambda e, name=filename: show_summary_popup(page, name)
+                        ),
+                        ft.ElevatedButton(
+                            text="View CV",
+                            on_click=lambda e, path=data['path']: on_view_cv(path)
+                        )
+                    ], spacing=10)
+                ]
+                bgcolor = "green" if i == 1 else "lightblue" if i <= 3 else "lightgray"
+                cards_row.controls.append(
+                    ft.Container(
+                        content=ft.Column(lines),
+                        padding=10,
+                        bgcolor=bgcolor,
+                        width=200,
+                        border_radius=10
+                    )
+                )
+
+            results_container.controls.append(cards_row)
+            page.update()
+        def change_page(direction):
+            nonlocal current_page
+            current_page += direction
+            current_page = max(1, min(current_page, total_pages))
+            update_results_display()
+
+        # Initial display
+        update_results_display()
     def show_summary_popup(page, filename):
         data = get_applicant_by_cv_filename(filename)
         
@@ -300,7 +337,7 @@ def main(page: ft.Page):
 
     # Susun layout
     page.add(
-        ft.Text("CV Analyzer App", size=32, weight=ft.FontWeight.BOLD),
+        ft.Text("CV Analyzer App", size=18, weight=ft.FontWeight.BOLD),
         ft.Column([
             ft.Text("Keywords:"), keywords_field,
             algo_dropdown,
