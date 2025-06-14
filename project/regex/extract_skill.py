@@ -17,41 +17,40 @@ def extract_skills_from_resume(text):
     Fungsi untuk mengekstrak bagian Skills dari teks resume
     """
     
-    # Pattern 1: Skills sebagai header dengan konten di bawahnya
-    # Menangkap dari "Skills" hingga section berikutnya atau akhir dokumen
-    pattern1 = r'(?i)^Skills\s*\n(.*?)(?=\n[A-Z][a-zA-Z\s]*\n|\n[A-Z][a-zA-Z\s]*:|$)'
+    # Pattern 1: Menangkap dari "skills" hingga section berikutnya atau akhir dokumen
+    # Menggunakan case-insensitive matching
+    pattern1 = r'(?i)^skills\s*\n(.*?)(?=^\w+\s*\n|\Z)'
     
-    # Pattern 2: Skills dengan konten dalam satu paragraf
-    pattern2 = r'(?i)Skills\s*[:\-]?\s*(.*?)(?=\n\n|\n[A-Z][a-zA-Z\s]*\n|$)'
+    # Pattern 2: Alternative pattern yang lebih fleksibel
+    # Menangkap dari skills hingga baris yang dimulai dengan huruf kapital (section baru)
+    pattern2 = r'(?i)skills\s*\n((?:(?!^[A-Z][A-Za-z\s]+\n).*\n?)*)'
     
-    # Pattern 3: Skills di akhir dokumen
-    pattern3 = r'(?i)Skills\s*[:\-]?\s*(.*?)$'
     
-    # Pattern 4: Skills dengan bullet points atau list
-    pattern4 = r'(?i)Skills\s*\n((?:.*\n)*?)(?=\n[A-Z][a-zA-Z\s]*\n|\n[A-Z][a-zA-Z\s]*:|$)'
+    # Pattern 3: Pattern yang menangkap skills dan semua baris setelahnya
+    # hingga menemukan section baru atau kata kunci tertentu
+    pattern3 = r'(?i)skills\s*\n(.*?)(?=\n(?:experience|skills|certifications|interests|additional\s+information|professional\s+summary|summary|accomplishments)\s*\n|\Z)'
     
     # Coba semua pattern
-    patterns = [pattern1, pattern2, pattern3, pattern4]
+    patterns = [pattern1, pattern2, pattern3]
     
     # Coba pattern pertama
     match = re.search(pattern1, text, re.MULTILINE | re.DOTALL)
     if match:
+        print(match.group(1).strip())
         return match.group(1).strip()
     
     # Coba pattern kedua jika yang pertama tidak berhasil
     match = re.search(pattern2, text, re.MULTILINE | re.DOTALL)
     if match:
+        print(match.group(1).strip())
         return match.group(1).strip()
     
     # Coba pattern ketiga sebagai fallback
     match = re.search(pattern3, text, re.MULTILINE | re.DOTALL)
     if match:
+        print(match.group(1).strip())
         return match.group(1).strip()
     
-    # Coba pattern ketiga sebagai fallback
-    match = re.search(pattern4, text, re.MULTILINE | re.DOTALL)
-    if match:
-        return match.group(1).strip()
     return None
 
 def extract_skills_simple(text):
@@ -76,7 +75,7 @@ def extract_skills_simple(text):
 # Python, Java, JavaScript, SQL, HTML, CSS, React, Node.js, Git, Docker
 # Machine Learning, Data Analysis, Problem Solving
 
-# Education
+# skills
 # Bachelor's Degree
 #     """,
     
@@ -146,8 +145,8 @@ if __name__ == "__main__":
         text = extract_text_from_pdf(path)
         edu = extract_skills_from_resume(text)
         if edu:
-            print("Bagian Education ditemukan:")
+            print("Bagian skills ditemukan:")
             print("=" * 50)
             print(edu)
         else:
-            print("Bagian Education tidak ditemukan.")
+            print("Bagian skills tidak ditemukan.")
