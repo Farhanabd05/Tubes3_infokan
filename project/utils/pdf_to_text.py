@@ -36,7 +36,6 @@ def load_all_cv_texts(cv_root_folder: str) -> list[dict]:
                 extracted = extract_text_from_pdf(full_path)
                 all_cv_data.append({
                     "path": full_path,
-                    "role": role,
                     "filename": filename,
                     "text": extracted
                 })
@@ -44,7 +43,7 @@ def load_all_cv_texts(cv_root_folder: str) -> list[dict]:
     return all_cv_data
 
 def test_pdf_extraction():
-    cv_data = load_all_cv_texts("../data/data")  # atau sesuaikan
+    cv_data = load_all_cv_texts("../data")  # atau sesuaikan
     for data in cv_data[:3]:  # tampilkan 3 contoh
         print("="*40)
         print(f"File: {data['filename']} ({data['role']})")

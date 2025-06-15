@@ -23,7 +23,7 @@ import heapq
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
 print("📄 Loading CVs from data/data ...")
-DUMMY_DATA = load_all_cv_texts("../data/data")  # atau "../data/data" tergantung run location
+DUMMY_DATA = load_all_cv_texts("../data")  # atau "../data/data" tergantung run location
 print(f"✅ Loaded {len(DUMMY_DATA)} CVs.")
 
 # UI Flet untuk CV Analyzer App

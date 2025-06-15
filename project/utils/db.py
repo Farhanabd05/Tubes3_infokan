@@ -7,7 +7,7 @@ DB_CONFIG = {
     'host': "localhost",
     'user': "root",
     'password': "12345",
-    'database': "cv_ats_db"
+    'database': "tubes3_seeding"
 }
 
 # ---------- DATABASE SETUP ----------
@@ -24,9 +24,9 @@ def get_applicant_by_cv_filename(filename: str):
            ap.address, ap.phone_number, ad.application_role
     FROM ApplicantProfile ap
     JOIN ApplicationDetail ad ON ap.applicant_id = ad.applicant_id
-    WHERE ad.cv_path = %s
+    WHERE ad.cv_path LIKE %s
     """
-    cursor.execute(query, (filename,))
+    cursor.execute(query, (f'%/{filename}',))
     result = cursor.fetchone()
 
     cursor.close()
