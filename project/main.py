@@ -3,32 +3,45 @@ import time
 import sys
 import os
 import webbrowser
-
-# Add the parent directory (project/) to Python path
-# sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from algo.kmp import kmp_search
-from algo.bm import boyer_moore_search
-from algo.ahocor import AhoCorasick
-from algo.levenshtein import levenshtein_distance, fuzzy_text_search, tune_threshold
-from utils.pdf_to_text import load_all_cv_texts
-from utils.db import get_applicant_by_cv_filename
-from regex.extract_exp import extract_experience_section
-from regex.extract_exp import extract_text_from_pdf
-from regex.extract_edu import extract_education_section
-from regex.extract_skill import extract_skills_from_resume
 import re
-from utils.seeding import setup_database_tables, populate_sample_data
-# Use heapq for more efficient top-N selection
 import heapq
 
-# Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
-print("📄 Loading CVs from data/data ...")
-DUMMY_DATA = load_all_cv_texts("../data/data")  # atau "../data/data" tergantung run location
-print(f"✅ Loaded {len(DUMMY_DATA)} CVs.")
+# Add the parent directory (project/) to Python path
+# This is often needed when running scripts from a subdirectory
+# sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# UI Flet untuk CV Analyzer App
+# Import your custom modules
+# Make sure these files exist and are in the correct path
+try:
+    from algo.kmp import kmp_search
+    from algo.bm import boyer_moore_search
+    from algo.ahocor import AhoCorasick
+    from algo.levenshtein import fuzzy_text_search
+    from utils.pdf_to_text import load_all_cv_texts
+    from utils.db import get_applicant_by_cv_filename
+    from regex.extract_exp import extract_experience_section, extract_text_from_pdf
+    from regex.extract_edu import extract_education_section
+    from regex.extract_skill import extract_skills_from_resume
+    from utils.seeding import setup_database_tables, populate_sample_data
+except ImportError as e:
+    print(f"Error importing modules: {e}")
+    print("Please ensure all required files (kmp.py, bm.py, etc.) are in their respective directories (algo/, utils/, etc.).")
+    sys.exit(1)
+
+
+# Load CV data once at the start
+print("📄 Loading CVs from data/data ...")
+try:
+    # Adjust the path based on your project structure
+    DUMMY_DATA = load_all_cv_texts("../data/data")
+    print(f"✅ Loaded {len(DUMMY_DATA)} CVs.")
+except FileNotFoundError:
+    print("❌ Error: 'data/data' directory not found. Please check the path.")
+    sys.exit(1)
+
 
 def on_view_cv(path: str):
+    """Opens the specified CV file in the default web browser."""
     abs_path = os.path.abspath(path)
     if os.path.exists(abs_path):
         webbrowser.open(f"file://{abs_path}")
@@ -36,296 +49,279 @@ def on_view_cv(path: str):
         print(f"❌ File not found: {abs_path}")
 
 def main(page: ft.Page):
+    """Main function to build the Flet UI."""
     page.title = "CV Analyzer App"
     page.padding = 20
-    page.bgcolor = "white"
-    
-    # Input Keywords
+
+    # --- UI CONTROLS ---
+
     keywords_field = ft.TextField(
         hint_text="Enter keywords, e.g. React, Express, HTML",
         width=600,
         border_radius=ft.border_radius.all(20)
     )
 
-    # Pilihan Algoritma Exact Match (KMP/BM)
     algo_dropdown = ft.Dropdown(
         label="Search Algorithm",
-        filled= True,
-        width=400,
+        width=200,
         border_radius=ft.border_radius.all(20),
         options=[
             ft.dropdown.Option("KMP"),
             ft.dropdown.Option("Boyer-Moore"),
             ft.dropdown.Option("Aho-Corasick")
         ],
-        value="KMP"  # nilai default agar selalu ada pilihan
+        value="KMP"
     )
 
-    # Top Matches dropdown
     top_matches = ft.Dropdown(
         label="Top Matches",
-        width=200,
+        width=100,
         border_radius=ft.border_radius.all(20),
-        options=[ft.dropdown.Option(str(i)) for i in range(1, 102)],
+        options=[ft.dropdown.Option(str(i)) for i in range (1, 120)],
         value="3"
     )
 
-    # Fuzzy Matches button (initially hidden)
     fuzzy_matches_button = ft.ElevatedButton(
         text="Fuzzy Matches",
         visible=False,
         on_click=lambda e: show_fuzzy_matches_popup()
     )
 
-    # Store fuzzy match results for popup
+    # --- Loading Animation (Defined once) ---
+    loading_bar = ft.ProgressBar(width=400, visible=False)
+    loading_text = ft.Text("Analyzing CVs...", visible=False, italic=True)
+    loading_container = ft.Column([loading_text, loading_bar],
+                                  horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                  spacing=10,
+                                  visible=False)
+
+    # --- STATE MANAGEMENT ---
     fuzzy_match_results = {}
-        
+    matches = []
+
     def clear_fuzzy_results():
         nonlocal fuzzy_match_results
         fuzzy_match_results = {}
 
-    # Tombol Search
-    search_button = ft.ElevatedButton(
-        text="Search",
-        width=600-200-100-12,
-        on_click=lambda e: on_search(e),
-    )
-
-    # Header dan container hasil
-    results_header = ft.Text("Results", size=18, weight=ft.FontWeight.BOLD)
-    scan_info = ft.Text("0 CVs scanned in 0ms", italic=True)
-    results_container = ft.Column(spacing=20)
-
+    # This is now the main search button handler
     def on_search(e):
-        # Mulai hitung waktu exact match
+        # 1. Show loading animation and disable search button
+        loading_container.visible = True
+        search_button.disabled = True
+        results_container.visible = False
+        scan_info.value = "Analyzing CVs..."
+        page.update()
+
+        # Small delay to ensure UI updates before blocking
+        time.sleep(0.1)
+
+        # 2. Run the core search logic
+        _perform_search()
+
+        # 3. Hide loading and show results
+        loading_container.visible = False
+        search_button.disabled = False
+        results_container.visible = True
+        page.update()
+
+    # The main search logic is moved into this function
+    def _perform_search():
+        nonlocal matches, fuzzy_match_results
         t0_exact = time.time()
         keywords = [kw.strip().lower() for kw in (keywords_field.value or '').split(',') if kw.strip()]
-        matches = []
-        fuzzy_used = False
-        fuzzy_start = 0
+        if not keywords:
+            scan_info.value = "Please enter at least one keyword."
+            results_container.controls.clear()
+            results_container.controls.append(ft.Text("No keywords entered.", italic=True))
+            return
+            
+        exact_matches = []
 
-        # Pre-lowercase all CV texts once
         if not hasattr(DUMMY_DATA[0], '_lower_text'):
             for data in DUMMY_DATA:
                 data['_lower_text'] = data['text'].lower()
 
-        # Exact match dengan KMP
+        # PHASE 1: Exact match search
         search_func = kmp_search if algo_dropdown.value == "KMP" else boyer_moore_search
-        
+        aho = AhoCorasick(keywords) if algo_dropdown.value == "Aho-Corasick" else None
+
         for data in DUMMY_DATA:
             total_matches = 0
             details = []
-            for kw in keywords:
-                if algo_dropdown.value == "Aho-Corasick":
-                    positions = AhoCorasick.search(data['text'].lower(), [kw.lower()])
-                else:
-                    positions = search_func(data['_lower_text'], kw)
-                count = len(positions)
-                if count:
+            if aho:
+                found_keywords = aho.search_all(data['_lower_text'])
+                for kw, positions in found_keywords.items():
+                    count = len(positions)
                     total_matches += count
                     details.append((kw, count))
+            else:
+                for kw in keywords:
+                    positions = search_func(data['_lower_text'], kw.lower())
+                    count = len(positions)
+                    if count:
+                        total_matches += count
+                        details.append((kw, count))
 
             if total_matches:
-                matches.append((data, total_matches, details))
+                exact_matches.append((data, total_matches, details))
 
+        exact_matches = heapq.nlargest(len(exact_matches), exact_matches, key=lambda x: x[1])
+        
         top_n = int(top_matches.value or "3")
-
-        # Separate exact and fuzzy matches, prioritize exact matches
-        if matches:
-            # Use nlargest for better performance on large datasets
-            exact_matches = heapq.nlargest(top_n, matches, key=lambda x: x[1])
+        
+        # DECISION POINT: Do we need fuzzy search?
+        if len(exact_matches) >= top_n:
+            fuzzy_used = False
+            fuzzy_ms = None
+            final_matches = []
+            for data, score, details in exact_matches[:top_n]:
+                final_matches.append((data, score, details, "exact"))
+            clear_fuzzy_results()
+        else:
+            fuzzy_used = True
+            fuzzy_start = time.time()
+            clear_fuzzy_results()
             
-            # Find keywords that had no exact matches
-            exact_keywords = set()
-            for _, _, details in exact_matches:
-                for kw, _ in details:
-                    exact_keywords.add(kw)
-            fuzzy_keywords = [kw for kw in keywords if kw not in exact_keywords]
+            exact_matches_lookup = {id(match_data): (match_score, match_details) 
+                                    for match_data, match_score, match_details in exact_matches}
             
-            if fuzzy_keywords:
-                fuzzy_used = True
-                clear_fuzzy_results()
-                fuzzy_start = time.time()
-                fuzzy_matches = []
+            combined_matches = []
+            
+            # PHASE 2: Combined exact + fuzzy search
+            for data in DUMMY_DATA:
+                exact_score, exact_details, exact_keywords_in_cv = (0, [], set())
+                if id(data) in exact_matches_lookup:
+                    exact_score, details_tuple = exact_matches_lookup[id(data)]
+                    exact_details = list(details_tuple)
+                    exact_keywords_in_cv = {kw for kw, _ in exact_details}
 
-                # Run fuzzy search for keywords without exact matches
-                for data in DUMMY_DATA:
-                    exact_score = 0
-                    fuzzy_score = 0
-                    all_details = []
-                    
-                    # Check if this CV already has exact matches
-                    for match_data, match_score, match_details in exact_matches:
-                        if match_data == data:
-                            exact_score = match_score
-                            all_details = list(match_details)
-                            break
-                    
-                    # Add fuzzy matches for remaining keywords
-                    for kw in fuzzy_keywords:
+                fuzzy_score = 0
+                fuzzy_details_list = []
+                for kw in keywords:
+                    if kw not in exact_keywords_in_cv:
                         count, matched_words = fuzzy_text_search(data['text'], kw)
                         if count > 0:
                             fuzzy_score += count
-                            all_details.append((kw, count))
-                            # Store fuzzy match results for popup
+                            fuzzy_details_list.append((kw, count))
                             if kw not in fuzzy_match_results:
                                 fuzzy_match_results[kw] = set()
                             fuzzy_match_results[kw].update(matched_words)
 
-                    # Prioritize exact matches: exact_score * 1000 + fuzzy_score
-                    if exact_score > 0 or fuzzy_score > 0:
-                        total_priority_score = exact_score * 1000 + fuzzy_score
-                        fuzzy_matches.append((data, exact_score + fuzzy_score, all_details, total_priority_score))
+                if exact_score == 0 and fuzzy_score == 0:
+                    continue
 
-                # Convert sets to lists for popup display
-                for kw in fuzzy_match_results:
-                    fuzzy_match_results[kw] = list(fuzzy_match_results[kw])
-                
-                # Sort by priority score (exact matches first), then by total score
-                fuzzy_matches = heapq.nlargest(len(fuzzy_matches), fuzzy_matches, key=lambda x: x[3])
-                matches = [(data, score, details) for data, score, details, _ in fuzzy_matches[:top_n]]
-            else:
-                matches = exact_matches
-        else:
-            # No exact matches, run full fuzzy search
-            fuzzy_used = True
-            clear_fuzzy_results()
-            fuzzy_start = time.time()
-            fuzzy_matches = []
+                match_type = "exact" if fuzzy_score == 0 else "fuzzy" if exact_score == 0 else "mixed"
+                total_display_score = exact_score + fuzzy_score
+                all_details = exact_details + fuzzy_details_list
+                priority_score = exact_score * 1000 + fuzzy_score
+                combined_matches.append((data, total_display_score, all_details, priority_score, match_type))
 
-            for data in DUMMY_DATA:
-                total_score = 0
-                details = []
-                for kw in keywords:
-                    count, matched_words = fuzzy_text_search(data['text'], kw)
-                    if count > 0:
-                        total_score += count
-                        details.append((kw, count))
-                        if kw not in fuzzy_match_results:
-                            fuzzy_match_results[kw] = set()
-                        fuzzy_match_results[kw].update(matched_words)
-
-                if total_score > 0:
-                    fuzzy_matches.append((data, total_score, details))
-
-            # Convert sets to lists for popup display
             for kw in fuzzy_match_results:
-                fuzzy_match_results[kw] = list(fuzzy_match_results[kw])
-            
-            fuzzy_matches = heapq.nlargest(len(fuzzy_matches), fuzzy_matches, key=lambda x: x[1])
-            matches = fuzzy_matches[:top_n]
+                if isinstance(fuzzy_match_results[kw], set):
+                    fuzzy_match_results[kw] = list(fuzzy_match_results[kw])
 
-        # Hitung durasi exact dan fuzzy
-        exact_ms = int(( (time.time() if not fuzzy_used else fuzzy_start) - t0_exact ) * 1000)
-        fuzzy_ms = int((time.time() - fuzzy_start) * 1000) if fuzzy_used else None
+            combined_matches = heapq.nlargest(len(combined_matches), combined_matches, key=lambda x: x[3])
+            final_matches = [(data, score, details, match_type) 
+                             for data, score, details, _, match_type in combined_matches[:top_n]]
+            fuzzy_ms = int((time.time() - fuzzy_start) * 1000)
 
-        # Update scan info dengan informasi top matches
-        total_found = len(matches)
-        scan_info.value = f"Exact Match: {len(DUMMY_DATA)} CVs scanned in {exact_ms}ms\n"
-        if fuzzy_used:
-            scan_info.value += f"Fuzzy Match: {fuzzy_ms}ms\n"
+        # Update scan info
+        exact_ms = int((time.time() - t0_exact) * 1000)
+        total_found = len(final_matches)
+        scan_info.value = f"Exact Match ({algo_dropdown.value}): {len(DUMMY_DATA)} CVs scanned in {exact_ms}ms\n"
+        if fuzzy_used and fuzzy_ms is not None:
+            scan_info.value += f"Fuzzy Match: Ran in {fuzzy_ms}ms\n"
         scan_info.value += f"Showing top {min(top_n, total_found)} of {total_found} matches"
 
-            # Pagination variables
-        items_per_page = 5
-        current_page = 1
-        total_pages = (len(matches) + items_per_page - 1) // items_per_page if matches else 1
+        matches = final_matches
+        fuzzy_matches_button.visible = fuzzy_used and bool(fuzzy_match_results)
+        update_results_display()
 
-        def update_results_display():
-            # Update UI
-            results_container.controls.clear()
-            start_idx = (current_page - 1) * items_per_page
-            end_idx = start_idx + items_per_page
-            current_matches = matches[start_idx:end_idx]
+    # Search Button definition (now correctly points to the single on_search function)
+    search_button = ft.ElevatedButton(
+        text="Search",
+        width=150,
+        on_click=on_search,
+    )
 
-            # Add pagination controls below cards
-            if total_pages > 1:
-                pagination_controls = ft.Row([
-                    ft.ElevatedButton(
-                        text="Previous",
-                        disabled=current_page == 1,
-                        on_click=lambda e: change_page(-1)
-                    ),
-                    ft.Text(f"Page {current_page} of {total_pages}"),
-                    ft.ElevatedButton(
-                        text="Next", 
-                        disabled=current_page == total_pages,
-                        on_click=lambda e: change_page(1)
-                    )
-                ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
-                
-                results_container.controls.append(pagination_controls)
+    results_header = ft.Text("Results", size=18, weight=ft.FontWeight.BOLD)
+    scan_info = ft.Text("Ready to search.", italic=True)
+    results_container = ft.Column(spacing=15)
 
-            # Create row for cards only
-            cards_row = ft.Row(spacing=20, vertical_alignment=ft.CrossAxisAlignment.START)
+    # Pagination variables
+    items_per_page = 8
+    current_page = 1
+
+    def update_results_display():
+        nonlocal current_page
+        results_container.controls.clear()
+        if not matches:
+            results_container.controls.append(ft.Text("No matches found.", italic=True))
+            page.update()
+            return
+
+        total_pages = (len(matches) + items_per_page - 1) // items_per_page
+        start_idx = (current_page - 1) * items_per_page
+        end_idx = start_idx + items_per_page
+        current_matches = matches[start_idx:end_idx]
+
+        cards_row = ft.Row(spacing=15, wrap=True, vertical_alignment=ft.CrossAxisAlignment.START)
+
+        for i, (data, total, details, match_type) in enumerate(current_matches, start=start_idx + 1):
+            filename = data.get('filename', 'Unknown')
             
-            for i, (data, total, details) in enumerate(current_matches, start_idx + 1):
-                # ... existing card creation code ...
-                filename = data.get('filename', 'Unknown')
-                lines = [
+            if match_type == "exact": bgcolor = "#2E7D32"
+            elif match_type == "fuzzy": bgcolor = "#C62828"
+            else: bgcolor = "#FF8F00"
+            
+            card = ft.Container(
+                content=ft.Column([
                     ft.Row([
                         ft.Container(
                             content=ft.Text(f"#{i}", weight=ft.FontWeight.BOLD, color="white"),
-                            bgcolor="blue",
-                            padding=5,
-                            border_radius=15,
-                            width=50,
-                            height=30,
-                            alignment=ft.alignment.center
+                            bgcolor=ft.Colors.with_opacity(0.3, "black"), padding=5, border_radius=15,
+                            width=50, height=30, alignment=ft.alignment.center
                         ),
-                        ft.Text(filename, weight=ft.FontWeight.BOLD, size=16)
+                        ft.Text(filename, weight=ft.FontWeight.BOLD, size=16),
+                        ft.Container(
+                            content=ft.Text(match_type.upper(), size=10, color="white", weight=ft.FontWeight.BOLD),
+                            bgcolor=ft.Colors.with_opacity(0.3, "black"), padding=4, border_radius=8
+                        )
                     ], spacing=10),
-                    ft.Text(f"{round(total, 2)} match score" if fuzzy_used else f"{int(total)} matches", italic=True),
+                    ft.Text(f"{round(total, 2)} match score", italic=True),
                     ft.Text("Matched keywords:"),
-                ] + [
-                    ft.Text(f"• {kw}: {int(score)} match{'es' if score>1 else ''}" if fuzzy_used else f"• {kw}: {int(score)} occurrence{'s' if score>1 else ''}")
-                    for kw, score in details
-                ] + [
+                    ft.Column([ft.Text(f"• {kw}: {score} occurrence{'s' if score > 1 else ''}") for kw, score in details]),
                     ft.PopupMenuButton(
                         items=[
-                            ft.PopupMenuItem(
-                                text="Summary",
-                                on_click=lambda e, name=filename: show_summary_popup(page, name)
-                            ),
-                            ft.PopupMenuItem(
-                                text="View CV", 
-                                on_click=lambda e, path=data['path']: on_view_cv(path)
-                            ),
-                            *(
-                                [ft.PopupMenuItem(
-                                    text="Fuzzy Match",
-                                    on_click=lambda e, card_data=data: show_fuzzy_matches_popup(card_data),
-                                )] if fuzzy_used else []
-                            ),
+                            ft.PopupMenuItem(text="Summary", on_click=lambda e, name=filename: show_summary_popup(page, name)),
+                            ft.PopupMenuItem(text="View CV", on_click=lambda e, path=data['path']: on_view_cv(path)),
+                            *([ft.PopupMenuItem(text="Fuzzy Details", on_click=lambda e, card_data=data: show_fuzzy_matches_popup(card_data))] if match_type in ["fuzzy", "mixed"] else [])
                         ],
-                        icon=ft.Icons.MORE_VERT,
-                        tooltip="Actions"
+                        icon=ft.Icons.MORE_VERT, tooltip="Actions"
                     )
-                ]
-                bgcolor = "green" if i == 1 else "#DA686C" if i <= 3 else "#3773FF"
-                cards_row.controls.append(
-                    ft.Container(
-                        content=ft.Column(lines),
-                        padding=10,
-                        bgcolor=bgcolor,
-                        width=200,
-                        border_radius=10
-                    )
-                )
+                ]),
+                padding=15, bgcolor=bgcolor, width=260, border_radius=10, ink=True,
+            )
+            cards_row.controls.append(card)
+        results_container.controls.append(cards_row)
 
-            results_container.controls.append(cards_row)
-            page.update()
-        def change_page(direction):
-            nonlocal current_page
-            current_page += direction
-            current_page = max(1, min(current_page, total_pages))
-            update_results_display()
-        # Show/hide fuzzy matches button
-        fuzzy_matches_button.visible = fuzzy_used
+        if total_pages > 1:
+            pagination_controls = ft.Row([
+                ft.ElevatedButton(text="Previous", disabled=current_page == 1, on_click=lambda e: change_page(-1)),
+                ft.Text(f"Page {current_page} of {total_pages}"),
+                ft.ElevatedButton(text="Next", disabled=current_page == total_pages, on_click=lambda e: change_page(1))
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
+            results_container.controls.append(pagination_controls)
+
         page.update()
-        # Initial display
+
+    def change_page(direction):
+        nonlocal current_page
+        total_pages = (len(matches) + items_per_page - 1) // items_per_page
+        current_page += direction
+        current_page = max(1, min(current_page, total_pages))
         update_results_display()
-    # Add filename index at startup
+
     filename_index = {cv["filename"]: cv for cv in DUMMY_DATA}
 
     def show_summary_popup(page, filename):
@@ -426,6 +422,7 @@ def main(page: ft.Page):
         page.overlay.append(dialog)
         dialog.open = True
         page.update()
+
     def show_fuzzy_matches_popup(card_data=None):
         if not fuzzy_match_results:
             return
@@ -449,7 +446,8 @@ def main(page: ft.Page):
                 ft.Text("Similar words found:", italic=True)
             ])
             
-            for typo in typos[:10]:  # Show max 10 typos per keyword
+            typos_list = list(typos) if isinstance(typos, set) else typos
+            for typo in typos_list[:10]:  # Show max 10 typos per keyword
                 content_items.append(
                     ft.Container(
                         content=ft.Text(f"• {typo}", size=12),
@@ -475,37 +473,35 @@ def main(page: ft.Page):
 
 
 
-
-    # Susun layout
-    # Susun layout dalam scroll container
+    # --- LAYOUT ---
     main_content = ft.Column([
-        ft.Text("CV Analyzer App", size=18, weight=ft.FontWeight.BOLD),
+        ft.Text("CV Analyzer App", size=24, weight=ft.FontWeight.BOLD),
+        ft.Row([
+            ft.Column([keywords_field]),
+            ft.Column([algo_dropdown]),
+            ft.Column([top_matches]),
+            ft.Column([search_button]),
+            ft.Column([fuzzy_matches_button])
+        ], alignment=ft.MainAxisAlignment.START, spacing=10),
+        ft.Divider(),
         ft.Column([
-            ft.Text("Keywords:"), keywords_field,
-                ft.Row([
-                algo_dropdown,
-                top_matches, 
-                search_button,
-                fuzzy_matches_button
-            ], spacing=10)
-        ], spacing=10),
-        results_header, scan_info, results_container
+            results_header,
+            scan_info,
+            loading_container,  # Loading container is now in the layout
+            results_container
+        ], spacing=10)
     ], spacing=20)
 
-    # Bungkus dalam Container dengan scroll
     scrollable_container = ft.Column(
-        controls=[main_content],
-        expand=True,
-        scroll=ft.ScrollMode.AUTO
+        controls=[main_content], expand=True, scroll=ft.ScrollMode.AUTO
     )
-
     page.add(scrollable_container)
+    page.update()
 
 if __name__ == "__main__":
-    # 1) Setup DB dan isi data sampel MySQL
-    setup_database_tables()
-    populate_sample_data()
-
-    # 2) Jalankan aplikasi Flet
+    # Optional: Setup DB and populate sample data on first run
+    # print("Setting up database...")
+    # setup_database_tables()
+    # populate_sample_data()
+    # print("Database setup complete.")
     ft.app(target=main)
-
