@@ -8,7 +8,7 @@ import webbrowser
 # sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from algo.kmp import kmp_search
 from algo.bm import boyer_moore_search
-from algo.levenshtein import levenshtein_distance
+from algo.levenshtein import levenshtein_distance, dynamicLevenshteinSearch, tune_threshold
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
 from regex.extract_exp import extract_experience_section
@@ -65,6 +65,20 @@ def main(page: ft.Page):
         value="3"
     )
 
+    # Fuzzy Matches button (initially hidden)
+    fuzzy_matches_button = ft.ElevatedButton(
+        text="Fuzzy Matches",
+        visible=False,
+        on_click=lambda e: show_fuzzy_matches_popup()
+    )
+
+    # Store fuzzy match results for popup
+    fuzzy_match_results = {}
+        
+    def clear_fuzzy_results():
+        nonlocal fuzzy_match_results
+        fuzzy_match_results = {}
+
     # Tombol Search
     search_button = ft.ElevatedButton(
         text="Search",
@@ -114,24 +128,31 @@ def main(page: ft.Page):
         else:
             # Mulai fuzzy match jika tidak ada exact matches
             fuzzy_used = True
+            # Clear previous fuzzy results
+            clear_fuzzy_results()
             # Waktu mulai fuzzy
             fuzzy_start = time.time()
             fuzzy_matches = []
 
             for data in DUMMY_DATA:
-                score = 0
+                total_score = 0
                 details = []
                 for kw in keywords:
-                    words = data['text'].lower().split()
-                    min_dist = min((levenshtein_distance(kw.lower(), word) for word in words), default=99)
-                    similarity = 1 - min_dist / max(len(kw), 1)
-                    if similarity >= 0.7:  # Threshold kemiripan (bisa diubah)
-                        score += similarity
-                        details.append((kw, similarity))
+                    count, matched_words = dynamicLevenshteinSearch(data['text'], kw)
+                    if count > 0:
+                        total_score += count
+                        details.append((kw, count))
+                        # Store fuzzy match results for popup
+                        if kw not in fuzzy_match_results:
+                            fuzzy_match_results[kw] = set()
+                        fuzzy_match_results[kw].update(matched_words)
 
-                if score > 0:
-                    fuzzy_matches.append((data, score, details))
-
+                if total_score > 0:
+                    fuzzy_matches.append((data, total_score, details))
+            
+            # Convert sets to lists for popup display
+            for kw in fuzzy_match_results:
+                fuzzy_match_results[kw] = list(fuzzy_match_results[kw])
             # Sort fuzzy matches berdasarkan score (descending)
             fuzzy_matches.sort(key=lambda x: x[1], reverse=True)
             
@@ -201,19 +222,29 @@ def main(page: ft.Page):
                     ft.Text(f"{round(total, 2)} match score" if fuzzy_used else f"{int(total)} matches", italic=True),
                     ft.Text("Matched keywords:"),
                 ] + [
-                    ft.Text(f"• {kw}: {round(score, 2)} similarity" if fuzzy_used else f"• {kw}: {int(score)} occurrence{'s' if score>1 else ''}")
+                    ft.Text(f"• {kw}: {int(score)} match{'es' if score>1 else ''}" if fuzzy_used else f"• {kw}: {int(score)} occurrence{'s' if score>1 else ''}")
                     for kw, score in details
                 ] + [
-                    ft.Row([
-                    ft.ElevatedButton(
-                            text="Summary",
-                            on_click=lambda e, name=filename: show_summary_popup(page, name)
-                        ),
-                        ft.ElevatedButton(
-                            text="View CV",
-                            on_click=lambda e, path=data['path']: on_view_cv(path)
-                        )
-                    ], spacing=10)
+                    ft.PopupMenuButton(
+                        items=[
+                            ft.PopupMenuItem(
+                                text="Summary",
+                                on_click=lambda e, name=filename: show_summary_popup(page, name)
+                            ),
+                            ft.PopupMenuItem(
+                                text="View CV", 
+                                on_click=lambda e, path=data['path']: on_view_cv(path)
+                            ),
+                            *(
+                                [ft.PopupMenuItem(
+                                    text="Fuzzy Match",
+                                    on_click=lambda e, card_data=data: show_fuzzy_matches_popup(card_data),
+                                )] if fuzzy_used else []
+                            ),
+                        ],
+                        icon=ft.Icons.MORE_VERT,
+                        tooltip="Actions"
+                    )
                 ]
                 bgcolor = "green" if i == 1 else "#DA686C" if i <= 3 else "#3773FF"
                 cards_row.controls.append(
@@ -233,7 +264,9 @@ def main(page: ft.Page):
             current_page += direction
             current_page = max(1, min(current_page, total_pages))
             update_results_display()
-
+        # Show/hide fuzzy matches button
+        fuzzy_matches_button.visible = fuzzy_used
+        page.update()
         # Initial display
         update_results_display()
     def show_summary_popup(page, filename):
@@ -335,6 +368,52 @@ def main(page: ft.Page):
         page.overlay.append(dialog)
         dialog.open = True
         page.update()
+    def show_fuzzy_matches_popup(card_data=None):
+        if not fuzzy_match_results:
+            return
+        
+        # Get fuzzy matches specific to this card
+        card_fuzzy_matches = {}
+        if card_data:
+            for kw in fuzzy_match_results.keys():
+                count, matched_words = dynamicLevenshteinSearch(card_data['text'], kw)
+                if count > 0:
+                    card_fuzzy_matches[kw] = list(matched_words)
+        else:
+            card_fuzzy_matches = fuzzy_match_results
+            
+        content_items = [ft.Text("Fuzzy Match Results:", weight=ft.FontWeight.BOLD, size=16)]
+        
+        for keyword, typos in card_fuzzy_matches.items():
+            content_items.extend([
+                ft.Divider(),
+                ft.Text(f"Keyword: '{keyword}'", weight=ft.FontWeight.BOLD),
+                ft.Text("Similar words found:", italic=True)
+            ])
+            
+            for typo in typos[:10]:  # Show max 10 typos per keyword
+                content_items.append(
+                    ft.Container(
+                        content=ft.Text(f"• {typo}", size=12),
+                        padding=ft.padding.only(left=20, bottom=2),
+                        bgcolor="lightyellow",
+                        border_radius=3
+                    )
+                )
+        
+        dialog = ft.AlertDialog(
+            title=ft.Text("Fuzzy Matches Found"),
+            content=ft.Column(
+                content_items,
+                height=400,
+                scroll=ft.ScrollMode.AUTO
+            ),
+            on_dismiss=lambda e: print("Fuzzy matches dialog closed")
+        )
+        
+        page.overlay.append(dialog)
+        dialog.open = True
+        page.update()
 
 
 
@@ -348,7 +427,8 @@ def main(page: ft.Page):
                 ft.Row([
                 algo_dropdown,
                 top_matches, 
-                search_button
+                search_button,
+                fuzzy_matches_button
             ], spacing=10)
         ], spacing=10),
         results_header, scan_info, results_container
