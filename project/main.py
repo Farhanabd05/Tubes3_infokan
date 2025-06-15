@@ -8,6 +8,7 @@ import webbrowser
 # sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from algo.kmp import kmp_search
 from algo.bm import boyer_moore_search
+from algo.ahocor import AhoCorasick
 from algo.levenshtein import levenshtein_distance, fuzzy_text_search, tune_threshold
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
@@ -52,7 +53,8 @@ def main(page: ft.Page):
         border_radius=ft.border_radius.all(20),
         options=[
             ft.dropdown.Option("KMP"),
-            ft.dropdown.Option("Boyer-Moore")
+            ft.dropdown.Option("Boyer-Moore"),
+            ft.dropdown.Option("Aho-Corasick")
         ],
         value="KMP"  # nilai default agar selalu ada pilihan
     )
@@ -111,8 +113,11 @@ def main(page: ft.Page):
         for data in DUMMY_DATA:
             total_matches = 0
             details = []
-            for kw in keywords: 
-                positions = search_func(data['_lower_text'], kw)
+            for kw in keywords:
+                if algo_dropdown.value == "Aho-Corasick":
+                    positions = AhoCorasick.search(data['text'].lower(), [kw.lower()])
+                else:
+                    positions = search_func(data['_lower_text'], kw)
                 count = len(positions)
                 if count:
                     total_matches += count
