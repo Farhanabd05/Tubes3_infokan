@@ -17,7 +17,8 @@ from regex.extract_edu import extract_education_section
 from regex.extract_skill import extract_skills_from_resume
 import re
 from utils.seeding import setup_database_tables, populate_sample_data
-
+# Use heapq for more efficient top-N selection
+import heapq
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
 print("📄 Loading CVs from data/data ...")
@@ -94,20 +95,24 @@ def main(page: ft.Page):
     def on_search(e):
         # Mulai hitung waktu exact match
         t0_exact = time.time()
-        keywords = [kw.strip() for kw in (keywords_field.value or '').split(',') if kw.strip()]
+        keywords = [kw.strip().lower() for kw in (keywords_field.value or '').split(',') if kw.strip()]
         matches = []
         fuzzy_used = False
         fuzzy_start = 0
 
+        # Pre-lowercase all CV texts once
+        if not hasattr(DUMMY_DATA[0], '_lower_text'):
+            for data in DUMMY_DATA:
+                data['_lower_text'] = data['text'].lower()
+
         # Exact match dengan KMP
+        search_func = kmp_search if algo_dropdown.value == "KMP" else boyer_moore_search
+        
         for data in DUMMY_DATA:
             total_matches = 0
             details = []
             for kw in keywords: 
-                if algo_dropdown.value == "KMP":
-                    positions = kmp_search(data['text'].lower(), kw.lower())
-                elif algo_dropdown.value == "Boyer-Moore":
-                    positions = boyer_moore_search(data['text'].lower(), kw.lower())
+                positions = search_func(data['_lower_text'], kw)
                 count = len(positions)
                 if count:
                     total_matches += count
@@ -116,15 +121,11 @@ def main(page: ft.Page):
             if total_matches:
                 matches.append((data, total_matches, details))
 
-        # Sort exact matches berdasarkan total_matches (descending)
-        matches.sort(key=lambda x: x[1], reverse=True)
-        
-        # Ambil top N untuk exact matches
         top_n = int(top_matches.value or "3")
-        
+
         if matches:
-            # Jika ada exact matches, ambil top N
-            matches = matches[:top_n]
+            # Use nlargest for better performance on large datasets
+            matches = heapq.nlargest(top_n, matches, key=lambda x: x[1])
         else:
             # Mulai fuzzy match jika tidak ada exact matches
             fuzzy_used = True
@@ -134,6 +135,7 @@ def main(page: ft.Page):
             fuzzy_start = time.time()
             fuzzy_matches = []
 
+            # Early termination for fuzzy search
             for data in DUMMY_DATA:
                 total_score = 0
                 details = []
@@ -149,6 +151,9 @@ def main(page: ft.Page):
 
                 if total_score > 0:
                     fuzzy_matches.append((data, total_score, details))
+                    # Early termination if we have enough matches
+                    if len(fuzzy_matches) >= top_n * 2:  # Get 2x to ensure good sorting
+                        break
             
             # Convert sets to lists for popup display
             for kw in fuzzy_match_results:
@@ -269,18 +274,20 @@ def main(page: ft.Page):
         page.update()
         # Initial display
         update_results_display()
+    # Add filename index at startup
+    filename_index = {cv["filename"]: cv for cv in DUMMY_DATA}
+
     def show_summary_popup(page, filename):
         data = get_applicant_by_cv_filename(filename)
         
         if data is None:
             dialog = ft.AlertDialog(title=ft.Text("Profile not found"))
         else:
-            full_cv_path = None
-            for cv in DUMMY_DATA:
-                if cv["filename"] == filename:
-                    full_cv_path = cv["path"]
-                    print("if path exists:", os.path.exists(full_cv_path))
-                    break
+            # Use index for O(1) lookup instead of O(n) search
+            cv_data = filename_index.get(filename)
+            full_cv_path = cv_data["path"] if cv_data else None
+            if full_cv_path:
+                print("if path exists:", os.path.exists(full_cv_path))
             print(f"Full CV Path: {full_cv_path}")
 
 
