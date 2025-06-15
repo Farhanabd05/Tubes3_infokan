@@ -9,7 +9,7 @@ import webbrowser
 from algo.kmp import kmp_search
 from algo.bm import boyer_moore_search
 from algo.ahocor import AhoCorasick
-from algo.levenshtein import levenshtein_distance, fuzzy_text_search, tune_threshold
+from algo.levenshtein import levenshtein_distance, fuzzy_text_search
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
 from regex.extract_exp import extract_experience_section
@@ -201,7 +201,7 @@ def main(page: ft.Page):
                 all_details = exact_details + fuzzy_details
                 # Priority: exact_score * 1000 + fuzzy_score (exact matches first)
                 
-                priority_score = is_all_words_exact*10e6 + exact_score * 10e3 + fuzzy_score
+                priority_score =  exact_score * 10e3 + fuzzy_score
                 
                 combined_matches.append((data, total_display_score, all_details, priority_score, match_type))
 
