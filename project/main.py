@@ -92,22 +92,20 @@ def main(page: ft.Page):
     # Header dan container hasil
     results_header = ft.Text("Results", size=18, weight=ft.FontWeight.BOLD)
     scan_info = ft.Text("0 CVs scanned in 0ms", italic=True)
-    results_container = ft.Column(spacing=20)
+    results_container = ft.Column(spacing=15)
 
     def on_search(e):
         # Mulai hitung waktu exact match
         t0_exact = time.time()
         keywords = [kw.strip().lower() for kw in (keywords_field.value or '').split(',') if kw.strip()]
-        matches = []
-        fuzzy_used = False
-        fuzzy_start = 0
-
+        exact_matches = []
+        
         # Pre-lowercase all CV texts once
         if not hasattr(DUMMY_DATA[0], '_lower_text'):
             for data in DUMMY_DATA:
                 data['_lower_text'] = data['text'].lower()
 
-        # Exact match dengan KMP
+        # PHASE 1: Exact match search
         search_func = kmp_search if algo_dropdown.value == "KMP" else boyer_moore_search
         
         for data in DUMMY_DATA:
@@ -124,82 +122,107 @@ def main(page: ft.Page):
                     details.append((kw, count))
 
             if total_matches:
-                matches.append((data, total_matches, details))
+                exact_matches.append((data, total_matches, details))
 
+        # Sort exact matches by score
+        exact_matches = heapq.nlargest(len(exact_matches), exact_matches, key=lambda x: x[1])
+        
         top_n = int(top_matches.value or "3")
-
-            # Separate exact and fuzzy matches, prioritize exact matches
-            # Always run fuzzy search for ALL keywords, prioritize exact matches
-        exact_matches = []
-        if matches:
-            exact_matches = heapq.nlargest(top_n, matches, key=lambda x: x[1])
-
-        # Always run fuzzy search
-        fuzzy_used = True
-        clear_fuzzy_results()
-        fuzzy_start = time.time()
-        combined_matches = []
-
-        # Run fuzzy search for ALL keywords
-        # Run fuzzy search for ALL keywords
-        for data in DUMMY_DATA:
-            exact_score = 0
-            fuzzy_score = 0
-            exact_details = []
-            fuzzy_details = []
+        exact_ms = int((time.time() - t0_exact) * 1000)
+        
+        # DECISION POINT: Do we need fuzzy search?
+        if len(exact_matches) >= top_n:
+            # We have enough exact matches, no need for fuzzy search
+            fuzzy_used = False
+            fuzzy_ms = None
             
-            # Get exact match details if any
-            for match_data, match_score, match_details in exact_matches:
-                if match_data == data:
-                    exact_score = match_score
-                    exact_details = list(match_details)
-                    break
+            # Just add match_type to exact matches
+            final_matches = []
+            for data, score, details in exact_matches[:top_n]:
+                final_matches.append((data, score, details, "exact"))
             
-            # Get keywords that already have exact matches in this CV
-            exact_keywords_in_cv = set()
-            for exact_kw, _ in exact_details:
-                exact_keywords_in_cv.add(exact_kw)
+            clear_fuzzy_results()
+            
+        else:
+            # We need fuzzy search to fill remaining slots
+            fuzzy_used = True
+            fuzzy_start = time.time()
+            clear_fuzzy_results()
+            
+            # Create lookup for exact matches for efficiency
+            exact_matches_lookup = {id(match_data): (match_score, match_details) 
+                                for match_data, match_score, match_details in exact_matches}
+            
+            combined_matches = []
+            
+            # PHASE 2: Combined exact + fuzzy search
+            for data in DUMMY_DATA:
+                # Get exact match details if any
+                if id(data) in exact_matches_lookup:
+                    exact_score, exact_details = exact_matches_lookup[id(data)]
+                    exact_details = list(exact_details)
+                    exact_keywords_in_cv = {exact_kw for exact_kw, _ in exact_details}
+                else:
+                    exact_score = 0
+                    exact_details = []
+                    exact_keywords_in_cv = set()
 
-            # Run fuzzy search only for keywords that don't have exact matches in this CV
-            for kw in keywords:
-                if kw not in exact_keywords_in_cv:  # Only fuzzy search if no exact match
-                    count, matched_words = fuzzy_text_search(data['text'], kw)
-                    if count > 0:
-                        fuzzy_score += count
-                        fuzzy_details.append((kw, count))
-                        # Store fuzzy match results for popup
-                        if kw not in fuzzy_match_results:
-                            fuzzy_match_results[kw] = set()
-                        fuzzy_match_results[kw].update(matched_words)
+                # Run fuzzy search only for keywords without exact matches
+                fuzzy_score = 0
+                fuzzy_details = []
+                
+                for kw in keywords:
+                    if kw not in exact_keywords_in_cv:  # Only fuzzy search if no exact match
+                        count, matched_words = fuzzy_text_search(data['text'], kw)
+                        if count > 0:
+                            fuzzy_score += count
+                            fuzzy_details.append((kw, count))
+                            # Store fuzzy match results for popup
+                            if kw not in fuzzy_match_results:
+                                fuzzy_match_results[kw] = set()
+                            fuzzy_match_results[kw].update(matched_words)
 
-            # Combine results: prioritize exact matches
-            if exact_score > 0 or fuzzy_score > 0:
+                # Skip if no matches found
+                if exact_score == 0 and fuzzy_score == 0:
+                    continue
+
+                # Determine match type
+                if exact_score > 0 and fuzzy_score == 0:
+                    match_type = "exact"
+                elif exact_score == 0 and fuzzy_score > 0:
+                    match_type = "fuzzy"
+                else:
+                    match_type = "mixed"
+                
+                # Combine results
                 total_display_score = exact_score + fuzzy_score
                 all_details = exact_details + fuzzy_details
                 # Priority: exact_score * 1000 + fuzzy_score (exact matches first)
                 priority_score = exact_score * 1000 + fuzzy_score
-                # Add match_type to distinguish between exact and fuzzy matches
-                match_type = "exact" if exact_score > 0 and fuzzy_score == 0 else "fuzzy" if exact_score == 0 and fuzzy_score > 0 else "mixed"
+                
                 combined_matches.append((data, total_display_score, all_details, priority_score, match_type))
 
-        # Convert sets to lists for popup display
-        for kw in fuzzy_match_results:
-            fuzzy_match_results[kw] = list(fuzzy_match_results[kw])
+            # Convert fuzzy match results sets to lists for popup display
+            for kw in fuzzy_match_results:
+                if isinstance(fuzzy_match_results[kw], set):
+                    fuzzy_match_results[kw] = list(fuzzy_match_results[kw])
 
-        # Sort by priority score (exact matches first), then by total score
-        combined_matches = heapq.nlargest(len(combined_matches), combined_matches, key=lambda x: x[3])
-        matches = [(data, score, details, match_type) for data, score, details, _, match_type in combined_matches[:top_n]]
+            # Sort by priority score and take top N
+            combined_matches = heapq.nlargest(len(combined_matches), combined_matches, key=lambda x: x[3])
+            final_matches = [(data, score, details, match_type) 
+                            for data, score, details, _, match_type in combined_matches[:top_n]]
+            
+            fuzzy_ms = int((time.time() - fuzzy_start) * 1000)
 
-        # Hitung durasi exact dan fuzzy
-        exact_ms = int(( (time.time() if not fuzzy_used else fuzzy_start) - t0_exact ) * 1000)
-        fuzzy_ms = int((time.time() - fuzzy_start) * 1000) if fuzzy_used else None
-
-        # Update scan info dengan informasi top matches
-        total_found = len(matches)
+        # Update scan info
+        total_found = len(final_matches)
         scan_info.value = f"Exact Match: {len(DUMMY_DATA)} CVs scanned in {exact_ms}ms\n"
         if fuzzy_used:
             scan_info.value += f"Fuzzy Match: {fuzzy_ms}ms\n"
         scan_info.value += f"Showing top {min(top_n, total_found)} of {total_found} matches"
+
+        # Set matches for pagination
+        matches = final_matches
 
             # Pagination variables
         items_per_page = 5
@@ -232,7 +255,7 @@ def main(page: ft.Page):
                 results_container.controls.append(pagination_controls)
 
             # Create row for cards only
-            cards_row = ft.Row(spacing=20, vertical_alignment=ft.CrossAxisAlignment.START)
+            cards_row = ft.Row(spacing=15, vertical_alignment=ft.CrossAxisAlignment.START)
             
             for i, (data, total, details, match_type) in enumerate(current_matches, start_idx + 1):
                 # ... existing card creation code ...
@@ -295,7 +318,7 @@ def main(page: ft.Page):
                         content=ft.Column(lines),
                         padding=10,
                         bgcolor=bgcolor,
-                        width=200,
+                        width=230,
                         border_radius=10
                     )
                 )
@@ -436,7 +459,8 @@ def main(page: ft.Page):
                 ft.Text("Similar words found:", italic=True)
             ])
             
-            for typo in typos[:10]:  # Show max 10 typos per keyword
+            typos_list = list(typos) if isinstance(typos, set) else typos
+            for typo in typos_list[:10]:  # Show max 10 typos per keyword
                 content_items.append(
                     ft.Container(
                         content=ft.Text(f"• {typo}", size=12),
@@ -489,9 +513,9 @@ def main(page: ft.Page):
     page.add(scrollable_container)
 
 if __name__ == "__main__":
-    # 1) Setup DB dan isi data sampel MySQL
-    setup_database_tables()
-    populate_sample_data()
+    # # 1) Setup DB dan isi data sampel MySQL
+    # setup_database_tables()
+    # populate_sample_data()
 
     # 2) Jalankan aplikasi Flet
     ft.app(target=main)
