@@ -128,19 +128,69 @@ def main(page: ft.Page):
 
         top_n = int(top_matches.value or "3")
 
+        # Separate exact and fuzzy matches, prioritize exact matches
         if matches:
             # Use nlargest for better performance on large datasets
-            matches = heapq.nlargest(top_n, matches, key=lambda x: x[1])
+            exact_matches = heapq.nlargest(top_n, matches, key=lambda x: x[1])
+            
+            # Find keywords that had no exact matches
+            exact_keywords = set()
+            for _, _, details in exact_matches:
+                for kw, _ in details:
+                    exact_keywords.add(kw)
+            fuzzy_keywords = [kw for kw in keywords if kw not in exact_keywords]
+            
+            if fuzzy_keywords:
+                fuzzy_used = True
+                clear_fuzzy_results()
+                fuzzy_start = time.time()
+                fuzzy_matches = []
+
+                # Run fuzzy search for keywords without exact matches
+                for data in DUMMY_DATA:
+                    exact_score = 0
+                    fuzzy_score = 0
+                    all_details = []
+                    
+                    # Check if this CV already has exact matches
+                    for match_data, match_score, match_details in exact_matches:
+                        if match_data == data:
+                            exact_score = match_score
+                            all_details = list(match_details)
+                            break
+                    
+                    # Add fuzzy matches for remaining keywords
+                    for kw in fuzzy_keywords:
+                        count, matched_words = fuzzy_text_search(data['text'], kw)
+                        if count > 0:
+                            fuzzy_score += count
+                            all_details.append((kw, count))
+                            # Store fuzzy match results for popup
+                            if kw not in fuzzy_match_results:
+                                fuzzy_match_results[kw] = set()
+                            fuzzy_match_results[kw].update(matched_words)
+
+                    # Prioritize exact matches: exact_score * 1000 + fuzzy_score
+                    if exact_score > 0 or fuzzy_score > 0:
+                        total_priority_score = exact_score * 1000 + fuzzy_score
+                        fuzzy_matches.append((data, exact_score + fuzzy_score, all_details, total_priority_score))
+
+                # Convert sets to lists for popup display
+                for kw in fuzzy_match_results:
+                    fuzzy_match_results[kw] = list(fuzzy_match_results[kw])
+                
+                # Sort by priority score (exact matches first), then by total score
+                fuzzy_matches = heapq.nlargest(len(fuzzy_matches), fuzzy_matches, key=lambda x: x[3])
+                matches = [(data, score, details) for data, score, details, _ in fuzzy_matches[:top_n]]
+            else:
+                matches = exact_matches
         else:
-            # Mulai fuzzy match jika tidak ada exact matches
+            # No exact matches, run full fuzzy search
             fuzzy_used = True
-            # Clear previous fuzzy results
             clear_fuzzy_results()
-            # Waktu mulai fuzzy
             fuzzy_start = time.time()
             fuzzy_matches = []
 
-            # Early termination for fuzzy search
             for data in DUMMY_DATA:
                 total_score = 0
                 details = []
@@ -149,24 +199,18 @@ def main(page: ft.Page):
                     if count > 0:
                         total_score += count
                         details.append((kw, count))
-                        # Store fuzzy match results for popup
                         if kw not in fuzzy_match_results:
                             fuzzy_match_results[kw] = set()
                         fuzzy_match_results[kw].update(matched_words)
 
                 if total_score > 0:
                     fuzzy_matches.append((data, total_score, details))
-                    # Early termination if we have enough matches
-                    if len(fuzzy_matches) >= top_n * 2:  # Get 2x to ensure good sorting
-                        break
-            
+
             # Convert sets to lists for popup display
             for kw in fuzzy_match_results:
                 fuzzy_match_results[kw] = list(fuzzy_match_results[kw])
-            # Sort fuzzy matches berdasarkan score (descending)
-            fuzzy_matches.sort(key=lambda x: x[1], reverse=True)
             
-            # Ambil top N untuk fuzzy matches
+            fuzzy_matches = heapq.nlargest(len(fuzzy_matches), fuzzy_matches, key=lambda x: x[1])
             matches = fuzzy_matches[:top_n]
 
         # Hitung durasi exact dan fuzzy
@@ -457,8 +501,8 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     # 1) Setup DB dan isi data sampel MySQL
-    setup_database_tables()
-    populate_sample_data()
+    # setup_database_tables()
+    # populate_sample_data()
 
     # 2) Jalankan aplikasi Flet
     ft.app(target=main)
