@@ -8,7 +8,7 @@ import webbrowser
 # sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from algo.kmp import kmp_search
 from algo.bm import boyer_moore_search
-from algo.levenshtein import levenshtein_distance, dynamicLevenshteinSearch, tune_threshold
+from algo.levenshtein import levenshtein_distance, fuzzy_text_search, tune_threshold
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
 from regex.extract_exp import extract_experience_section
@@ -138,7 +138,7 @@ def main(page: ft.Page):
                 total_score = 0
                 details = []
                 for kw in keywords:
-                    count, matched_words = dynamicLevenshteinSearch(data['text'], kw)
+                    count, matched_words = fuzzy_text_search(data['text'], kw)
                     if count > 0:
                         total_score += count
                         details.append((kw, count))
@@ -376,7 +376,7 @@ def main(page: ft.Page):
         card_fuzzy_matches = {}
         if card_data:
             for kw in fuzzy_match_results.keys():
-                count, matched_words = dynamicLevenshteinSearch(card_data['text'], kw)
+                count, matched_words = fuzzy_text_search(card_data['text'], kw)
                 if count > 0:
                     card_fuzzy_matches[kw] = list(matched_words)
         else:

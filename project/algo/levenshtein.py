@@ -31,22 +31,23 @@ def levenshtein_distance(a: str, b: str) -> int:
     return dp[len_a][len_b]
 
 
-def dynamicLevenshteinSearch(text: str, pattern: str, tolerance_percent: float = 0.125, max_edits: int = 4) -> tuple[int, list[str]]:
-    # Hitung ambang batas (allowed_edits) secara dinamis
-    patternLen = len(pattern)
-    if patternLen == 0:
+def fuzzy_text_search(text: str, target: str, similarity_threshold: float = 0.125, max_distance: int = 4) -> tuple[int, list[str]]:
+    # Hitung ambang batas (edit_distance_limit) secara dinamis
+    target_length = len(target)
+    if target_length == 0:
         return 0, []
-    allowedEdits = min(math.ceil(tolerance_percent * patternLen), max_edits)
-    words = text.split()
-    count = 0
-    matched_words = []
-    pattern_lower = pattern.lower()
-    for word in words:
-        # allowedEdits sebagai threshold dinamis
-        if levenshtein_distance(word.lower(), pattern_lower) <= allowedEdits: 
-            count += 1
-            matched_words.append(word)
-    return count, matched_words
+    edit_distance_limit = min(math.ceil(similarity_threshold * target_length), max_distance)
+    word_list = text.split()
+    match_count = 0
+    found_matches = []
+    target_lowercase = target.lower()
+    for current_word in word_list:
+        # edit_distance_limit sebagai threshold dinamis
+        if levenshtein_distance(current_word.lower(), target_lowercase) <= edit_distance_limit: 
+            match_count += 1
+            found_matches.append(current_word)
+    return match_count, found_matches
+
 
 def tune_threshold():
     """
@@ -80,7 +81,7 @@ def tune_threshold():
                 total_tests += 1
                 # Simulasi text yang mengandung typo
                 test_text = f"experienced in {typo} programming"
-                count, matches = dynamicLevenshteinSearch(test_text, correct_word, threshold)
+                count, matches = fuzzy_text_search(test_text, correct_word, threshold)
                 if count > 0:  # Jika berhasil match
                     correct_matches += 1
         
