@@ -141,6 +141,7 @@ def main(page: ft.Page):
         combined_matches = []
 
         # Run fuzzy search for ALL keywords
+        # Run fuzzy search for ALL keywords
         for data in DUMMY_DATA:
             exact_score = 0
             fuzzy_score = 0
@@ -171,14 +172,15 @@ def main(page: ft.Page):
                             fuzzy_match_results[kw] = set()
                         fuzzy_match_results[kw].update(matched_words)
 
-
             # Combine results: prioritize exact matches
             if exact_score > 0 or fuzzy_score > 0:
                 total_display_score = exact_score + fuzzy_score
                 all_details = exact_details + fuzzy_details
                 # Priority: exact_score * 1000 + fuzzy_score (exact matches first)
                 priority_score = exact_score * 1000 + fuzzy_score
-                combined_matches.append((data, total_display_score, all_details, priority_score))
+                # Add match_type to distinguish between exact and fuzzy matches
+                match_type = "exact" if exact_score > 0 and fuzzy_score == 0 else "fuzzy" if exact_score == 0 and fuzzy_score > 0 else "mixed"
+                combined_matches.append((data, total_display_score, all_details, priority_score, match_type))
 
         # Convert sets to lists for popup display
         for kw in fuzzy_match_results:
@@ -186,7 +188,7 @@ def main(page: ft.Page):
 
         # Sort by priority score (exact matches first), then by total score
         combined_matches = heapq.nlargest(len(combined_matches), combined_matches, key=lambda x: x[3])
-        matches = [(data, score, details) for data, score, details, _ in combined_matches[:top_n]]
+        matches = [(data, score, details, match_type) for data, score, details, _, match_type in combined_matches[:top_n]]
 
         # Hitung durasi exact dan fuzzy
         exact_ms = int(( (time.time() if not fuzzy_used else fuzzy_start) - t0_exact ) * 1000)
@@ -232,7 +234,7 @@ def main(page: ft.Page):
             # Create row for cards only
             cards_row = ft.Row(spacing=20, vertical_alignment=ft.CrossAxisAlignment.START)
             
-            for i, (data, total, details) in enumerate(current_matches, start_idx + 1):
+            for i, (data, total, details, match_type) in enumerate(current_matches, start_idx + 1):
                 # ... existing card creation code ...
                 filename = data.get('filename', 'Unknown')
                 lines = [
@@ -246,7 +248,13 @@ def main(page: ft.Page):
                             height=30,
                             alignment=ft.alignment.center
                         ),
-                        ft.Text(filename, weight=ft.FontWeight.BOLD, size=16)
+                        ft.Text(filename, weight=ft.FontWeight.BOLD, size=16),
+                        ft.Container(
+                            content=ft.Text(match_type.upper(), size=10, color="white", weight=ft.FontWeight.BOLD),
+                            bgcolor="gray",
+                            padding=3,
+                            border_radius=8
+                        )
                     ], spacing=10),
                     ft.Text(f"{round(total, 2)} match score" if fuzzy_used else f"{int(total)} matches", italic=True),
                     ft.Text("Matched keywords:"),
@@ -275,7 +283,13 @@ def main(page: ft.Page):
                         tooltip="Actions"
                     )
                 ]
-                bgcolor = "green" if i == 1 else "#DA686C" if i <= 3 else "#3773FF"
+                # Different colors based on match type
+                if match_type == "exact":
+                    bgcolor = "green" if i == 1 else "#006400" if i <= 3 else "#228B22"  # Green shades for exact
+                elif match_type == "fuzzy":
+                    bgcolor = "#FF6347" if i == 1 else "#DC143C" if i <= 3 else "#B22222"  # Red shades for fuzzy
+                else:  # mixed
+                    bgcolor = "#FFD700" if i == 1 else "#FFA500" if i <= 3 else "#FF8C00"  # Orange shades for mixed
                 cards_row.controls.append(
                     ft.Container(
                         content=ft.Column(lines),
