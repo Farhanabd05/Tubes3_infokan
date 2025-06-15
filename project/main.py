@@ -51,6 +51,7 @@ def main(page: ft.Page):
             ft.dropdown.Option("KMP"),
             ft.dropdown.Option("Boyer-Moore")
         ],
+        value="KMP"  # nilai default agar selalu ada pilihan
     )
 
     # Top Matches dropdown
@@ -75,7 +76,8 @@ def main(page: ft.Page):
     results_container = ft.Column(spacing=20)
 
     def on_search(e):
-        t0 = time.time()
+        # Mulai hitung waktu exact match
+        t0_exact = time.time()
         keywords = [kw.strip() for kw in (keywords_field.value or '').split(',') if kw.strip()]
         matches = []
         fuzzy_used = False
@@ -110,6 +112,7 @@ def main(page: ft.Page):
         else:
             # Mulai fuzzy match jika tidak ada exact matches
             fuzzy_used = True
+            # Waktu mulai fuzzy
             fuzzy_start = time.time()
             fuzzy_matches = []
 
@@ -133,15 +136,16 @@ def main(page: ft.Page):
             # Ambil top N untuk fuzzy matches
             matches = fuzzy_matches[:top_n]
 
-        duration_ms = int((time.time() - t0) * 1000)
-        fuzzy_ms = int((time.time() - fuzzy_start) * 1000) if fuzzy_used else 0
+        # Hitung durasi exact dan fuzzy
+        exact_ms = int(( (time.time() if not fuzzy_used else fuzzy_start) - t0_exact ) * 1000)
+        fuzzy_ms = int((time.time() - fuzzy_start) * 1000) if fuzzy_used else None
 
         # Update scan info dengan informasi top matches
         total_found = len(matches)
-        scan_info.value = f"{len(DUMMY_DATA)} CVs scanned in {duration_ms}ms\n"
-        scan_info.value += f"Showing top {min(top_n, total_found)} of {total_found} matches\n"
+        scan_info.value = f"Exact Match: {len(DUMMY_DATA)} CVs scanned in {exact_ms}ms\n"
         if fuzzy_used:
-            scan_info.value += f"Fuzzy Match executed in {fuzzy_ms}ms"
+            scan_info.value += f"Fuzzy Match: {fuzzy_ms}ms\n"
+        scan_info.value += f"Showing top {min(top_n, total_found)} of {total_found} matches"
 
             # Pagination variables
         items_per_page = 5

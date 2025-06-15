@@ -175,3 +175,5 @@ cython_debug/
 kmp_commented.py
 
 .github/
+
+*.zip
