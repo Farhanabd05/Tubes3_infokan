@@ -236,23 +236,7 @@ def main(page: ft.Page):
             end_idx = start_idx + items_per_page
             current_matches = matches[start_idx:end_idx]
 
-            # Add pagination controls below cards
-            if total_pages > 1:
-                pagination_controls = ft.Row([
-                    ft.ElevatedButton(
-                        text="Previous",
-                        disabled=current_page == 1,
-                        on_click=lambda e: change_page(-1)
-                    ),
-                    ft.Text(f"Page {current_page} of {total_pages}"),
-                    ft.ElevatedButton(
-                        text="Next", 
-                        disabled=current_page == total_pages,
-                        on_click=lambda e: change_page(1)
-                    )
-                ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
-                
-                results_container.controls.append(pagination_controls)
+            
 
             # Create row for cards only
             cards_row = ft.Row(spacing=15, vertical_alignment=ft.CrossAxisAlignment.START)
@@ -308,9 +292,9 @@ def main(page: ft.Page):
                 ]
                 # Different colors based on match type
                 if match_type == "exact":
-                    bgcolor = "green" if i == 1 else "#006400" if i <= 3 else "#228B22"  # Green shades for exact
+                    bgcolor = "#118911" if i == 1 else "#125612" if i <= 3 else "#083208"  # Green shades for exact
                 elif match_type == "fuzzy":
-                    bgcolor = "#FF6347" if i == 1 else "#DC143C" if i <= 3 else "#B22222"  # Red shades for fuzzy
+                    bgcolor = "#D12D00" if i == 1 else "#9F0F2C" if i <= 3 else "#5A1111"  # Red shades for fuzzy
                 else:  # mixed
                     bgcolor = "#FFD700" if i == 1 else "#FFA500" if i <= 3 else "#FF8C00"  # Orange shades for mixed
                 cards_row.controls.append(
@@ -324,6 +308,23 @@ def main(page: ft.Page):
                 )
 
             results_container.controls.append(cards_row)
+            # Add pagination controls below cards
+            if total_pages > 1:
+                pagination_controls = ft.Row([
+                    ft.ElevatedButton(
+                        text="Previous",
+                        disabled=current_page == 1,
+                        on_click=lambda e: change_page(-1)
+                    ),
+                    ft.Text(f"Page {current_page} of {total_pages}"),
+                    ft.ElevatedButton(
+                        text="Next", 
+                        disabled=current_page == total_pages,
+                        on_click=lambda e: change_page(1)
+                    )
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=20)
+                
+                results_container.controls.append(pagination_controls)
             page.update()
         def change_page(direction):
             nonlocal current_page
@@ -379,8 +380,8 @@ def main(page: ft.Page):
                         content_items.append(
                             ft.Container(
                                 content=ft.Text(f"{i}. {exp}", size=12),
-                                padding=ft.padding.only(left=10, bottom=5),
-                                bgcolor="grey",
+                                padding=ft.padding.only(left=10, bottom=5,right=10),
+                                border=ft.border.all(1, "gray"),
                                 border_radius=5
                             )
                         )
@@ -397,8 +398,8 @@ def main(page: ft.Page):
                     content_items.append(
                         ft.Container(
                             content=ft.Text(education, size=12),
-                            padding=ft.padding.only(left=10, bottom=5),
-                            bgcolor="lightblue",
+                            padding=ft.padding.only(left=10, bottom=5, right=10),
+                            border=ft.border.all(1, "lightblue"),
                             border_radius=5
                         )
                     )
@@ -415,8 +416,8 @@ def main(page: ft.Page):
                     content_items.append(
                         ft.Container(
                             content=ft.Text(skills, size=12),
-                            padding=ft.padding.only(left=10, bottom=5),
-                            bgcolor="lightgreen",
+                            padding=ft.padding.only(left=10, bottom=5,right=10),
+                            border=ft.border.all(1, "lightgreen"),
                             border_radius=5
                         )
                     )
