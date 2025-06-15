@@ -16,6 +16,8 @@ from regex.extract_exp import extract_text_from_pdf
 from regex.extract_edu import extract_education_section
 from regex.extract_skill import extract_skills_from_resume
 import re
+from utils.seeding import setup_database_tables, populate_sample_data
+
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
 print("📄 Loading CVs from data/data ...")
@@ -361,5 +363,11 @@ def main(page: ft.Page):
 
     page.add(scrollable_container)
 
-# Jalankan Flet App
-ft.app(target=main)
+if __name__ == "__main__":
+    # 1) Setup DB dan isi data sampel MySQL
+    setup_database_tables()
+    populate_sample_data()
+
+    # 2) Jalankan aplikasi Flet
+    ft.app(target=main)
+
