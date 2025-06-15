@@ -9,7 +9,7 @@ import webbrowser
 from algo.kmp import kmp_search
 from algo.bm import boyer_moore_search
 from algo.ahocor import AhoCorasick
-from algo.levenshtein import levenshtein_distance, fuzzy_text_search, tune_threshold
+from algo.levenshtein import levenshtein_distance, fuzzy_text_search
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
 from regex.extract_exp import extract_experience_section
