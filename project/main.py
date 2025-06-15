@@ -200,8 +200,7 @@ def main(page: ft.Page):
                 total_display_score = exact_score + fuzzy_score
                 all_details = exact_details + fuzzy_details
                 # Priority: exact_score * 1000 + fuzzy_score (exact matches first)
-                
-                priority_score =  exact_score * 10e3 + fuzzy_score
+                priority_score =  exact_score * 10e6 + fuzzy_score + 1000 * len(all_details)  # Higher priority for more details
                 
                 combined_matches.append((data, total_display_score, all_details, priority_score, match_type))
 
