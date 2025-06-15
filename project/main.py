@@ -8,6 +8,7 @@ import webbrowser
 # sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from algo.kmp import kmp_search
 from algo.bm import boyer_moore_search
+from algo.ahocor import AhoCorasick
 from algo.levenshtein import levenshtein_distance
 from utils.pdf_to_text import load_all_cv_texts
 from utils.db import get_applicant_by_cv_filename
@@ -51,7 +52,8 @@ def main(page: ft.Page):
         border_radius=ft.border_radius.all(20),
         options=[
             ft.dropdown.Option("KMP"),
-            ft.dropdown.Option("Boyer-Moore")
+            ft.dropdown.Option("Boyer-Moore"),
+            ft.dropdown.Option("Aho-Corasick")
         ],
         value="KMP"  # nilai default agar selalu ada pilihan
     )
@@ -94,6 +96,9 @@ def main(page: ft.Page):
                     positions = kmp_search(data['text'].lower(), kw.lower())
                 elif algo_dropdown.value == "Boyer-Moore":
                     positions = boyer_moore_search(data['text'].lower(), kw.lower())
+                elif algo_dropdown.value == "Aho-Corasick":
+                    ac = AhoCorasick([kw])
+                    positions = ac.search(data['text'].lower(), [kw.lower()])
                 count = len(positions)
                 if count:
                     total_matches += count
