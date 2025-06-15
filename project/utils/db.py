@@ -34,7 +34,7 @@ def get_applicant_by_cv_filename(filename: str):
     return result
 
 if __name__ == "__main__":
-    filename = "10554236.pdf"  # Ganti sesuai data kamu
+    filename = "10554236.pdf"
     data = get_applicant_by_cv_filename(filename)
     if data:
         print("✅ Data ditemukan:")

@@ -122,10 +122,12 @@ def main(page: ft.Page):
                     details.append((kw, count))
 
             if total_matches:
-                exact_matches.append((data, total_matches, details))
+                is_all_matched = len(details)==len(keywords)
+                exact_matches.append((data, total_matches, details,is_all_matched))
 
         # Sort exact matches by score
-        exact_matches = heapq.nlargest(len(exact_matches), exact_matches, key=lambda x: x[1])
+        # Ensure all exact keywords are in the CV as highest priority
+        exact_matches = heapq.nlargest(len(exact_matches), exact_matches, key=lambda x: 1000*x[3]+x[1])
         
         top_n = int(top_matches.value or "3")
         exact_ms = int((time.time() - t0_exact) * 1000)
@@ -138,7 +140,7 @@ def main(page: ft.Page):
             
             # Just add match_type to exact matches
             final_matches = []
-            for data, score, details in exact_matches[:top_n]:
+            for data, score, details, _ in exact_matches[:top_n]:
                 final_matches.append((data, score, details, "exact"))
             
             clear_fuzzy_results()
@@ -198,7 +200,8 @@ def main(page: ft.Page):
                 total_display_score = exact_score + fuzzy_score
                 all_details = exact_details + fuzzy_details
                 # Priority: exact_score * 1000 + fuzzy_score (exact matches first)
-                priority_score = exact_score * 1000 + fuzzy_score
+                
+                priority_score = is_all_words_exact*10e6 + exact_score * 10e3 + fuzzy_score
                 
                 combined_matches.append((data, total_display_score, all_details, priority_score, match_type))
 
@@ -242,7 +245,6 @@ def main(page: ft.Page):
             cards_row = ft.Row(spacing=15, vertical_alignment=ft.CrossAxisAlignment.START)
             
             for i, (data, total, details, match_type) in enumerate(current_matches, start_idx + 1):
-                # ... existing card creation code ...
                 filename = data.get('filename', 'Unknown')
                 lines = [
                     ft.Row([

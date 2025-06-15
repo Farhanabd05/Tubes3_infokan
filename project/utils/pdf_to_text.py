@@ -55,7 +55,7 @@ def load_all_cv_texts(cv_root_folder: str) -> list[dict]:
 
         for filename in os.listdir(role_folder):
             if filename.lower().endswith(".pdf") and filename in list_of_filenames:
-                print(f"Processing {filename} in {role_folder}")
+                # print(f"Processing {filename} in {role_folder}")
                 full_path = os.path.join(role_folder, filename)
                 extracted = extract_text_from_pdf(full_path)
                 all_cv_data.append({
