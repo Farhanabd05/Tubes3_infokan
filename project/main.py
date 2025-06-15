@@ -23,7 +23,7 @@ import heapq
 
 # Dummy data sesuai SQL schema (ApplicantProfile dan ApplicationDetail)
 print("📄 Loading CVs from data/data ...")
-DUMMY_DATA = load_all_cv_texts("../data/data")  # atau "../data/data" tergantung run location
+DUMMY_DATA = load_all_cv_texts("../data")  # atau "../data/data" tergantung run location
 print(f"✅ Loaded {len(DUMMY_DATA)} CVs.")
 
 # UI Flet untuk CV Analyzer App
@@ -42,7 +42,7 @@ def main(page: ft.Page):
     # Input Keywords
     keywords_field = ft.TextField(
         hint_text="Enter keywords, e.g. React, Express, HTML",
-        width=600,
+        width=500,
         border_radius=ft.border_radius.all(20)
     )
 
@@ -85,7 +85,7 @@ def main(page: ft.Page):
     # Tombol Search
     search_button = ft.ElevatedButton(
         text="Search",
-        width=600-200-100-12,
+        width=200,
         on_click=lambda e: on_search(e),
     )
 

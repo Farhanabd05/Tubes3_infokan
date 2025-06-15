@@ -12,7 +12,7 @@ DB_CONFIG = {
     'host': "localhost",
     'user': "root",
     'password': "12345",
-    'database': "cv_ats_db"
+    'database': "tubes3_seeding"
 }
 
 # ---------- DATABASE SETUP ----------
