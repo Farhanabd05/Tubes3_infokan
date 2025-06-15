@@ -86,6 +86,26 @@ def main(page: ft.Page):
                                   spacing=10,
                                   visible=False)
     
+    def on_search(e):
+        #Show loading animation and disable search button
+        loading_container.visible = True
+        search_button.disabled = True
+        loading_bar.visible = True
+        results_container.visible = False
+        scan_info.value = "Analyzing CVs..."
+        page.update()
+
+        #Small delay to ensure UI updates before blocking
+        time.sleep(0.1)
+        _perform_search()
+
+        #Hide loading and show results
+        loading_container.visible = False
+        search_button.disabled = False
+        loading_bar.visible = False
+        results_container.visible = True
+        page.update()
+
     # Search Button
     search_button = ft.ElevatedButton(
         text="Search",
@@ -104,26 +124,6 @@ def main(page: ft.Page):
     def clear_fuzzy_results():
         nonlocal fuzzy_match_results
         fuzzy_match_results = {}
-
-    def on_search(e):
-        # 1. Show loading animation and disable search button
-        loading_container.visible = True
-        search_button.disabled = True
-        results_container.visible = False
-        scan_info.value = "Analyzing CVs..."
-        page.update()
-
-        # Small delay to ensure UI updates before blocking
-        time.sleep(0.1)
-
-        # 2. Run the core search logic
-        _perform_search()
-
-        # 3. Hide loading and show results
-        loading_container.visible = False
-        search_button.disabled = False
-        results_container.visible = True
-        page.update()
 
     def _perform_search():
         nonlocal matches, fuzzy_match_results
