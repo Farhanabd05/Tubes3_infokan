@@ -153,7 +153,7 @@ def main(page: ft.Page):
             
             # Create lookup for exact matches for efficiency
             exact_matches_lookup = {id(match_data): (match_score, match_details) 
-                                for match_data, match_score, match_details in exact_matches}
+                                for match_data, match_score, match_details,_ in exact_matches}
             
             combined_matches = []
             
@@ -298,7 +298,7 @@ def main(page: ft.Page):
                 elif match_type == "fuzzy":
                     bgcolor = "#D12D00" if i == 1 else "#9F0F2C" if i <= 3 else "#5A1111"  # Red shades for fuzzy
                 else:  # mixed
-                    bgcolor = "#FFD700" if i == 1 else "#FFA500" if i <= 3 else "#FF8C00"  # Orange shades for mixed
+                    bgcolor = "#C0A71D" if i == 1 else "#9C6D1B" if i <= 3 else "#50320C"  # Orange shades for mixed
                 cards_row.controls.append(
                     ft.Container(
                         content=ft.Column(lines),
