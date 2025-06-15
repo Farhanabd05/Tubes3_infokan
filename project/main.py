@@ -36,6 +36,7 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 20
+    page.bgcolor = "white"
     
     # Input Keywords
     keywords_field = ft.TextField(
@@ -47,7 +48,8 @@ def main(page: ft.Page):
     # Pilihan Algoritma Exact Match (KMP/BM)
     algo_dropdown = ft.Dropdown(
         label="Search Algorithm",
-        width=200,
+        filled= True,
+        width=400,
         border_radius=ft.border_radius.all(20),
         options=[
             ft.dropdown.Option("KMP"),
@@ -58,7 +60,7 @@ def main(page: ft.Page):
     # Top Matches dropdown
     top_matches = ft.Dropdown(
         label="Top Matches",
-        width=100,
+        width=200,
         border_radius=ft.border_radius.all(20),
         options=[ft.dropdown.Option(str(i)) for i in range(1, 11)],
         value="3"
@@ -68,6 +70,10 @@ def main(page: ft.Page):
     search_button = ft.ElevatedButton(
         text="Search",
         width=600,
+        style=ft.ButtonStyle(
+        bgcolor="blue",
+        color="white"
+        ),
         on_click=lambda e: on_search(e),
     )
 
@@ -300,9 +306,9 @@ def main(page: ft.Page):
 
     # Susun layout
     page.add(
-        ft.Text("CV Analyzer App", size=32, weight=ft.FontWeight.BOLD),
+        ft.Text("CV Analyzer App", size=32, weight=ft.FontWeight.BOLD, color="black"),
         ft.Column([
-            ft.Text("Keywords:"), keywords_field,
+            ft.Text("Keywords:", color="black"), keywords_field,
             algo_dropdown,
             top_matches, search_button
         ], spacing=10),
