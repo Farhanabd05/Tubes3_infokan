@@ -42,7 +42,7 @@ def main(page: ft.Page):
     # Input Keywords
     keywords_field = ft.TextField(
         hint_text="Enter keywords, e.g. React, Express, HTML",
-        width=600,
+        width=500,
         border_radius=ft.border_radius.all(20)
     )
 
@@ -85,7 +85,7 @@ def main(page: ft.Page):
     # Tombol Search
     search_button = ft.ElevatedButton(
         text="Search",
-        width=600-200-100-12,
+        width=200,
         on_click=lambda e: on_search(e),
     )
 

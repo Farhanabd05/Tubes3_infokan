@@ -38,6 +38,11 @@ def extract_experience_section(text: str) -> List[str]:
         re.IGNORECASE
     )
 
+        # Tambahkan pattern untuk format MM/YYYY - MM/YYYY
+    numneric_range_pattern = re.compile(
+        r"\b(0[1-9]|1[0-2])/\d{4}\s*-\s*(0[1-9]|1[0-2])/\d{4}\b",
+        re.IGNORECASE
+    )
     
     # Gabungkan teks untuk menangani pattern yang tersebar di multiple lines
     full_text = '\n'.join(lines)
@@ -45,7 +50,8 @@ def extract_experience_section(text: str) -> List[str]:
     # Cari semua matches dari semua pattern
     matches = (list(date_pattern.finditer(full_text)) + 
                list(numeric_date_pattern.finditer(full_text)) + 
-               list(short_month_pattern.finditer(full_text)))
+               list(short_month_pattern.finditer(full_text)) +
+               list(numneric_range_pattern.finditer(full_text)))
     
     # Sort matches berdasarkan posisi dalam teks
     matches.sort(key=lambda x: x.start())
