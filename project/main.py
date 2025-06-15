@@ -6,12 +6,6 @@ import webbrowser
 import re
 import heapq
 
-# Add the parent directory (project/) to Python path
-# This is often needed when running scripts from a subdirectory
-# sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Import your custom modules
-# Make sure these files exist and are in the correct path
 try:
     from algo.kmp import kmp_search
     from algo.bm import boyer_moore_search
@@ -41,7 +35,6 @@ except FileNotFoundError:
 
 
 def on_view_cv(path: str):
-    """Opens the specified CV file in the default web browser."""
     abs_path = os.path.abspath(path)
     if os.path.exists(abs_path):
         webbrowser.open(f"file://{abs_path}")
@@ -49,11 +42,9 @@ def on_view_cv(path: str):
         print(f"❌ File not found: {abs_path}")
 
 def main(page: ft.Page):
-    """Main function to build the Flet UI."""
     page.title = "CV Analyzer App"
     page.padding = 20
 
-    # --- UI CONTROLS ---
 
     keywords_field = ft.TextField(
         hint_text="Enter keywords, e.g. React, Express, HTML",
@@ -87,15 +78,26 @@ def main(page: ft.Page):
         on_click=lambda e: show_fuzzy_matches_popup()
     )
 
-    # --- Loading Animation (Defined once) ---
+    #Loading Animation
     loading_bar = ft.ProgressBar(width=400, visible=False)
     loading_text = ft.Text("Analyzing CVs...", visible=False, italic=True)
     loading_container = ft.Column([loading_text, loading_bar],
                                   horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                                   spacing=10,
                                   visible=False)
+    
+    # Search Button
+    search_button = ft.ElevatedButton(
+        text="Search",
+        width=150,
+        on_click=on_search,
+    )
 
-    # --- STATE MANAGEMENT ---
+    results_header = ft.Text("Results", size=18, weight=ft.FontWeight.BOLD)
+    scan_info = ft.Text("Ready to search.", italic=True)
+    results_container = ft.Column(spacing=15)
+
+
     fuzzy_match_results = {}
     matches = []
 
@@ -103,7 +105,6 @@ def main(page: ft.Page):
         nonlocal fuzzy_match_results
         fuzzy_match_results = {}
 
-    # This is now the main search button handler
     def on_search(e):
         # 1. Show loading animation and disable search button
         loading_container.visible = True
@@ -124,7 +125,6 @@ def main(page: ft.Page):
         results_container.visible = True
         page.update()
 
-    # The main search logic is moved into this function
     def _perform_search():
         nonlocal matches, fuzzy_match_results
         t0_exact = time.time()
@@ -141,7 +141,6 @@ def main(page: ft.Page):
             for data in DUMMY_DATA:
                 data['_lower_text'] = data['text'].lower()
 
-        # PHASE 1: Exact match search
         search_func = kmp_search if algo_dropdown.value == "KMP" else boyer_moore_search
         aho = AhoCorasick(keywords) if algo_dropdown.value == "Aho-Corasick" else None
 
@@ -169,7 +168,6 @@ def main(page: ft.Page):
         
         top_n = int(top_matches.value or "3")
         
-        # DECISION POINT: Do we need fuzzy search?
         if len(exact_matches) >= top_n:
             fuzzy_used = False
             fuzzy_ms = None
@@ -187,7 +185,6 @@ def main(page: ft.Page):
             
             combined_matches = []
             
-            # PHASE 2: Combined exact + fuzzy search
             for data in DUMMY_DATA:
                 exact_score, exact_details, exact_keywords_in_cv = (0, [], set())
                 if id(data) in exact_matches_lookup:
@@ -237,18 +234,7 @@ def main(page: ft.Page):
         fuzzy_matches_button.visible = fuzzy_used and bool(fuzzy_match_results)
         update_results_display()
 
-    # Search Button definition (now correctly points to the single on_search function)
-    search_button = ft.ElevatedButton(
-        text="Search",
-        width=150,
-        on_click=on_search,
-    )
-
-    results_header = ft.Text("Results", size=18, weight=ft.FontWeight.BOLD)
-    scan_info = ft.Text("Ready to search.", italic=True)
-    results_container = ft.Column(spacing=15)
-
-    # Pagination variables
+    # Pagination 
     items_per_page = 8
     current_page = 1
 
@@ -338,7 +324,7 @@ def main(page: ft.Page):
             print(f"Full CV Path: {full_cv_path}")
 
 
-            # Create content list starting with basic info
+            # Create content list
             content_items = [
                 ft.Text(f"Name: {data['first_name']} {data['last_name']}"),
                 ft.Text(f"Role: {data['application_role']}"),
@@ -471,9 +457,7 @@ def main(page: ft.Page):
         dialog.open = True
         page.update()
 
-
-
-    # --- LAYOUT ---
+    # Main content layout
     main_content = ft.Column([
         ft.Text("CV Analyzer App", size=24, weight=ft.FontWeight.BOLD),
         ft.Row([
@@ -487,7 +471,7 @@ def main(page: ft.Page):
         ft.Column([
             results_header,
             scan_info,
-            loading_container,  # Loading container is now in the layout
+            loading_container,
             results_container
         ], spacing=10)
     ], spacing=20)
