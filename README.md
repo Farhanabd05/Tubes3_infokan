@@ -1,7 +1,3 @@
-Berikut adalah draft file `README.md` yang sesuai dengan spesifikasi dari dokumen `Spesifikasi Tugas Besar 3 Stima 2024_2025.pdf`:
-
----
-
 # CV Analyzer ATS - Tubes 3 Stima 2024/2025
 
 ## 🧠 Penjelasan Algoritma
@@ -22,7 +18,7 @@ Boyer-Moore adalah algoritma pencocokan string yang menggunakan strategi “lomp
 
 ### Instalasi dengan [uv](https://github.com/astral-sh/uv)
 
-Jika kamu menggunakan **uv** sebagai dependency manager:
+Jika menggunakan **uv** sebagai dependency manager:
 
 ```bash
 uv venv
@@ -42,7 +38,7 @@ uv sync
 [project]
 name = "cv-analyzer-ats"
 version = "0.1.0"
-description = "CV Analyzer ATS using KMP and Boyer-Moore algorithms"
+description = "CV Analyzer ATS using KMP,Boyer-Moore, and Aho-Corasick algorithms"
 authors = [
     {name = "Abdullah Farhan", email = "13523042@std.stei.itb.ac.id"},
     {name = "William Andrian", email = "13523006@std.stei.itb.ac.id"},
@@ -95,10 +91,10 @@ Dan anda bisa copas perintah yang ada di file database pada link di bawah
    ```
 
 2. **Menjalankan Aplikasi GUI**
-   Jalankan:
+   Dari project/ jalankan:
 
    ```bash
-   python main.py
+   uv run main.py
    ```
 
 3. **Struktur Folder**
@@ -114,14 +110,10 @@ Dan anda bisa copas perintah yang ada di file database pada link di bawah
    ```
 
 ## 👨‍💻 Author
-
-* Nama/NIM: **Abdullah Farhan/13523042**
 * Nama/NIM: **William Andrian/13523006**
 * Nama/NIM: **Sebastian Enrico/13523134**
-* Kelompok: **\[Isi nama kelompok sesuai sheet]**
+* Nama/NIM: **Abdullah Farhan/13523042**
+* Kelompok: **Infokan**
 
 Link Database Dapat diakses pada: https://drive.google.com/file/d/12snp5U5Nfh0mHmPyAmyPoiICXvzUaJms/view 
----
-
-Jika kamu ingin file ini disimpan langsung sebagai `README.md`, beritahu saja. Kalau sudah oke, saya bisa bantu lanjut generate `requirements.txt` atau file setup lainnya.
 
