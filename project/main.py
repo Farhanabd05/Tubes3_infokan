@@ -33,8 +33,6 @@ def on_view_cv(path: str):
 
 def main(page: ft.Page):
     page.title = "CV Analyzer App"
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 20
     
     # Input Keywords
@@ -60,14 +58,14 @@ def main(page: ft.Page):
         label="Top Matches",
         width=100,
         border_radius=ft.border_radius.all(20),
-        options=[ft.dropdown.Option(str(i)) for i in range(1, 11)],
+        options=[ft.dropdown.Option(str(i)) for i in range(1, 102)],
         value="3"
     )
 
     # Tombol Search
     search_button = ft.ElevatedButton(
         text="Search",
-        width=600,
+        width=600-200-100-12,
         on_click=lambda e: on_search(e),
     )
 
@@ -176,7 +174,7 @@ def main(page: ft.Page):
                 results_container.controls.append(pagination_controls)
 
             # Create row for cards only
-            cards_row = ft.Row(spacing=20)
+            cards_row = ft.Row(spacing=20, vertical_alignment=ft.CrossAxisAlignment.START)
             
             for i, (data, total, details) in enumerate(current_matches, start_idx + 1):
                 # ... existing card creation code ...
@@ -188,7 +186,7 @@ def main(page: ft.Page):
                             bgcolor="blue",
                             padding=5,
                             border_radius=15,
-                            width=30,
+                            width=50,
                             height=30,
                             alignment=ft.alignment.center
                         ),
@@ -211,7 +209,7 @@ def main(page: ft.Page):
                         )
                     ], spacing=10)
                 ]
-                bgcolor = "green" if i == 1 else "lightblue" if i <= 3 else "lightgray"
+                bgcolor = "green" if i == 1 else "#DA686C" if i <= 3 else "#3773FF"
                 cards_row.controls.append(
                     ft.Container(
                         content=ft.Column(lines),
@@ -336,15 +334,28 @@ def main(page: ft.Page):
 
 
     # Susun layout
-    page.add(
+    # Susun layout dalam scroll container
+    main_content = ft.Column([
         ft.Text("CV Analyzer App", size=18, weight=ft.FontWeight.BOLD),
         ft.Column([
             ft.Text("Keywords:"), keywords_field,
-            algo_dropdown,
-            top_matches, search_button
+                ft.Row([
+                algo_dropdown,
+                top_matches, 
+                search_button
+            ], spacing=10)
         ], spacing=10),
         results_header, scan_info, results_container
+    ], spacing=20)
+
+    # Bungkus dalam Container dengan scroll
+    scrollable_container = ft.Column(
+        controls=[main_content],
+        expand=True,
+        scroll=ft.ScrollMode.AUTO
     )
+
+    page.add(scrollable_container)
 
 # Jalankan Flet App
 ft.app(target=main)

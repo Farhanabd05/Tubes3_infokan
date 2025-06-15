@@ -173,3 +173,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 kmp_commented.py
+
+.github/
