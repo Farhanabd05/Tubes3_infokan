@@ -490,19 +490,22 @@ def main(page: ft.Page):
     # Susun layout
     # Susun layout dalam scroll container
     main_content = ft.Column([
-        ft.Text("CV Analyzer App", size=18, weight=ft.FontWeight.BOLD),
+        ft.Text("CV Analyzer App", size=24, weight=ft.FontWeight.BOLD),
+        ft.Row([
+            ft.Column([keywords_field]),
+            ft.Column([algo_dropdown]),
+            ft.Column([top_matches]),
+            ft.Column([search_button]),
+            ft.Column([fuzzy_matches_button])
+        ], alignment=ft.MainAxisAlignment.START, spacing=10),
+        ft.Divider(),
         ft.Column([
-            ft.Text("Keywords:"), keywords_field,
-                ft.Row([
-                algo_dropdown,
-                top_matches, 
-                search_button,
-                fuzzy_matches_button
-            ], spacing=10)
-        ], spacing=10),
-        results_header, scan_info, results_container
+            results_header,
+            scan_info,
+            results_container
+        ], spacing=10)
     ], spacing=20)
-
+    
     # Bungkus dalam Container dengan scroll
     scrollable_container = ft.Column(
         controls=[main_content],
